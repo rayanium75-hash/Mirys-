@@ -27,6 +27,7 @@ import com.example.ui.screens.FeedSocialScreen
 import com.example.ui.screens.GamesScreen
 import com.example.ui.screens.AgendaScreen
 import com.example.ui.screens.ShopScreen
+import com.example.ui.screens.TalkScreen
 import com.example.ui.theme.MyApplicationTheme
 import com.example.ui.viewmodel.AuraViewModel
 import com.example.ui.components.BrandLogo
@@ -110,9 +111,14 @@ fun MainAppContainer(
                     )
                     "feed" -> FeedSocialScreen(
                         viewModel = viewModel,
+                        onNavigateToGames = { viewModel.selectTab("games") },
                         modifier = Modifier.fillMaxSize()
                     )
                     "games" -> GamesScreen(
+                        viewModel = viewModel,
+                        modifier = Modifier.fillMaxSize()
+                    )
+                    "talk" -> TalkScreen(
                         viewModel = viewModel,
                         modifier = Modifier.fillMaxSize()
                     )
@@ -487,7 +493,7 @@ fun CustomTopBar(
                             .clickable { onProfileClick() }
                     ) {
                         Text(
-                            text = if (viewModel.subscriptionTier.contains("Pro")) "PRO ✨" else "PREMIUM 👑",
+                            text = if (viewModel.subscriptionTier.contains("Pro")) "PRO" else "PREMIUM",
                             fontSize = 9.sp,
                             fontWeight = FontWeight.Black,
                             color = Color(0xFFFFD700)
@@ -559,16 +565,16 @@ fun CustomBottomBar(
         )
 
         NavigationBarItem(
-            selected = currentTab == "games",
-            onClick = { onTabSelected("games") },
-            label = { Text("Jeux", fontSize = 10.sp, fontWeight = FontWeight.SemiBold) },
+            selected = currentTab == "talk",
+            onClick = { onTabSelected("talk") },
+            label = { Text("Talk", fontSize = 10.sp, fontWeight = FontWeight.SemiBold) },
             icon = {
                 Icon(
-                    imageVector = Icons.Default.SportsEsports,
-                    contentDescription = "Onglet Jeux"
+                    imageVector = Icons.Default.Forum,
+                    contentDescription = "Onglet Talk"
                 )
             },
-            modifier = Modifier.testTag("nav_games")
+            modifier = Modifier.testTag("nav_talk")
         )
 
         NavigationBarItem(

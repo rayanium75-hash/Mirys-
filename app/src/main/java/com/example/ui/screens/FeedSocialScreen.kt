@@ -64,6 +64,7 @@ import android.net.Uri
 @Composable
 fun FeedSocialScreen(
     viewModel: AuraViewModel,
+    onNavigateToGames: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     var newPostText by remember { mutableStateOf("") }
@@ -134,30 +135,52 @@ fun FeedSocialScreen(
                     )
                 }
 
-                // Small circular coins showcase
-                Card(
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.secondaryContainer
-                    ),
-                    shape = RoundedCornerShape(20.dp),
-                    modifier = Modifier.testTag("feed_coins_tag")
+                // Small circular coins showcase + Games shortcut
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    Row(
-                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    Card(
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.secondaryContainer
+                        ),
+                        shape = RoundedCornerShape(20.dp),
+                        modifier = Modifier.testTag("feed_coins_tag")
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Paid,
+                                contentDescription = "Pièces d'Or",
+                                tint = Color(0xFFFFC107),
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Text(
+                                text = "${viewModel.coins}",
+                                fontWeight = FontWeight.ExtraBold,
+                                fontSize = 13.sp,
+                                color = MaterialTheme.colorScheme.onSecondaryContainer
+                            )
+                        }
+                    }
+                    IconButton(
+                        onClick = onNavigateToGames,
+                        modifier = Modifier
+                            .size(40.dp)
+                            .background(
+                                MaterialTheme.colorScheme.secondaryContainer,
+                                RoundedCornerShape(12.dp)
+                            )
+                            .testTag("feed_games_shortcut")
                     ) {
                         Icon(
-                            imageVector = Icons.Default.Paid,
-                            contentDescription = "Pièces d'Or",
-                            tint = Color(0xFFFFC107),
-                            modifier = Modifier.size(16.dp)
-                        )
-                        Text(
-                            text = "${viewModel.coins}",
-                            fontWeight = FontWeight.ExtraBold,
-                            fontSize = 13.sp,
-                            color = MaterialTheme.colorScheme.onSecondaryContainer
+                            imageVector = Icons.Default.SportsEsports,
+                            contentDescription = "Aller aux Jeux",
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(22.dp)
                         )
                     }
                 }
@@ -174,10 +197,8 @@ fun FeedSocialScreen(
             verticalAlignment = Alignment.CenterVertically
         ) {
             val subTabs = listOf(
-                "moments" to "Moments & Fil 📰",
-                "dms" to "DMs 💬",
-                "rooms" to "Salons Vocaux 🎙️",
-                "policy" to "Charte & Politique 📜"
+                "moments" to "Moments & Fil",
+                "policy"  to "Charte & Politique"
             )
             subTabs.forEach { (tabId, label) ->
                 val isSelected = feedActiveSubTab == tabId
@@ -190,9 +211,6 @@ fun FeedSocialScreen(
                         )
                         .clickable {
                             feedActiveSubTab = tabId
-                            if (tabId != "dms") {
-                                isChattingPartnerHandle = null
-                            }
                             viewModel.triggerBeep(3)
                         }
                         .padding(horizontal = 14.dp, vertical = 7.dp)
@@ -501,19 +519,6 @@ fun FeedSocialScreen(
                     }
                 }
 
-                "dms" -> {
-                    DirectMessagesTab(
-                        viewModel = viewModel,
-                        activePartnerHandle = isChattingPartnerHandle,
-                        onSelectPartner = { partner ->
-                            isChattingPartnerHandle = partner
-                        }
-                    )
-                }
-
-                "rooms" -> {
-                    VoiceRoomsTab(viewModel = viewModel)
-                }
 
                 "policy" -> {
                     AppPolicySection()
@@ -521,7 +526,6 @@ fun FeedSocialScreen(
             }
         }
     }
-
     // Media Picker overlay for photos
     if (showPhotoPicker) {
         MediaPickerDialog(
@@ -2111,7 +2115,7 @@ fun DirectMessagesTab(
                                             }
                                         )
                                         Column {
-                                            Text("Message Audio 🎙️", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                            Text("Message Audio", fontSize = 12.sp, fontWeight = FontWeight.Bold)
                                             Text("0:08 • Cliquez pour écouter", fontSize = 9.sp, color = Color.White.copy(alpha = 0.7f))
                                         }
                                     }
@@ -2266,7 +2270,7 @@ fun VoiceRoomsTab(viewModel: AuraViewModel) {
             ) {
                 Icon(imageVector = Icons.Default.Mic, contentDescription = null, modifier = Modifier.size(16.dp))
                 Spacer(modifier = Modifier.width(6.dp))
-                Text("Salon Vocal 🎙️", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                Text("Salon Vocal", fontSize = 11.sp, fontWeight = FontWeight.Bold)
             }
 
             Button(
@@ -2289,7 +2293,7 @@ fun VoiceRoomsTab(viewModel: AuraViewModel) {
             ) {
                 Icon(imageVector = Icons.Default.Videocam, contentDescription = null, modifier = Modifier.size(16.dp))
                 Spacer(modifier = Modifier.width(6.dp))
-                Text("Salle Vidéo 🎥", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                Text("Salle Vidéo", fontSize = 11.sp, fontWeight = FontWeight.Bold)
             }
         }
 
@@ -2327,7 +2331,7 @@ fun VoiceRoomsTab(viewModel: AuraViewModel) {
                                     .background(Color(0xFFE11D48), RoundedCornerShape(4.dp))
                                     .padding(horizontal = 6.dp, vertical = 2.dp)
                             ) {
-                                Text("LIVE 🎙️", color = Color.White, fontSize = 9.sp, fontWeight = FontWeight.Bold)
+                                Text("LIVE", color = Color.White, fontSize = 9.sp, fontWeight = FontWeight.Bold)
                             }
 
                             Text(

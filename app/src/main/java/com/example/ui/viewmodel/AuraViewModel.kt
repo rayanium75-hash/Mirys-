@@ -242,7 +242,7 @@ class AuraViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     // --- NAVIGATION TABS SYSTEM ---
-    var currentTab by mutableStateOf("dashboard") // "dashboard", "feed", "games", "agenda", "shop"
+    var currentTab by mutableStateOf("dashboard") // "dashboard", "feed", "games", "talk", "agenda", "shop"
         private set
 
     fun selectTab(tab: String) {
