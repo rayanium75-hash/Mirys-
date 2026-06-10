@@ -1,0 +1,89 @@
+# Codemagic Continuous Integration configuration for Mirys
+# For documentation, visit https://docs.codemagic.io/
+
+workflows:
+  android-build:
+    name: Mirys Android Build Pipeline
+    max_build_duration: 30
+    instance_type: mac_mini_m1
+    
+    environment:
+      groups:
+        # Define these groups in your Codemagic Secrets configuration:
+        # https://docs.codemagic.io/variables/environment-variables/
+        - api_keys
+        - keystore_credentials
+      vars:
+        # Default fallback values if not overridden in Codemagic environment groups
+        GEMINI_API_KEY: "MY_GEMINI_API_KEY"
+      java: 17
+      android_gradle: 8.0
+
+    triggering:
+      events:
+        - push
+        - pull_request
+      branch_patterns:
+        - pattern: '*'
+          include: true
+
+    scripts:
+      - name: Grant execute permissions to Gradle wrapper
+        script: |
+          chmod +x gradlew
+
+      - name: Create local .env configuration file
+        script: |
+          echo "Generating .env configuration file..."
+          echo "GEMINI_API_KEY=$GEMINI_API_KEY" > .env
+          echo ".env file generated successfully."
+
+      - name: Decode signing keystore (if configured)
+        script: |
+          if [ -n "$KEYSTORE_BASE64" ]; then
+            echo "Decoding upload keystore..."
+            echo "$KEYSTORE_BASE64" | base64 --decode > my-upload-key.jks
+            export KEYSTORE_PATH="my-upload-key.jks"
+          else
+            echo "KEYSTORE_BASE64 is not set, skipping manual decoding of release keystore."
+          fi
+
+      - name: Run unit testing suite
+        script: |
+          ./gradlew testDebugUnitTest --continue
+
+      - name: Compile and assemble application APK packages
+        script: |
+          # Build a debug build and optionally build a signed release build
+          ./gradlew assembleDebug
+
+          if [ -n "$STORE_PASSWORD" ] && [ -f "my-upload-key.jks" ]; then
+            echo "Building signed output release..."
+            export KEYSTORE_PATH="my-upload-key.jks"
+            ./gradlew assembleRelease
+          else
+            echo "Skipping signed release build due to missing keystore secrets. Generating unsigned release..."
+            ./gradlew assembleRelease || echo "Release build requires key definitions. Standard Debug APK is ready."
+          fi
+
+      - name: Compile and package Android App Bundle (AAB) for Play Store
+        script: |
+          if [ -n "$STORE_PASSWORD" ] && [ -f "my-upload-key.jks" ]; then
+            echo "Building release Android App Bundle..."
+            export KEYSTORE_PATH="my-upload-key.jks"
+            ./gradlew bundleRelease
+          else
+            echo "Skipping Release Bundle creation."
+          fi
+
+    artifacts:
+      - app/build/outputs/apk/**/*.apk
+      - app/build/outputs/bundle/**/*.aab
+
+    publishing:
+      email:
+        recipients:
+          - rayanium75@gmail.com
+        notify:
+          success: true
+          failure: true

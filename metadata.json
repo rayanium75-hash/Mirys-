@@ -1,0 +1,8 @@
+{
+  "name": "Mirys",
+  "description": "Suivi d'humeur intelligent, journal de bien-être et planificateur de tâches propulsé par l'IA de Mirys.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
