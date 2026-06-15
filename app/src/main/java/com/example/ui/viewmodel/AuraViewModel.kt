@@ -21,6 +21,10 @@ import com.example.data.model.JournalEntry
 import com.example.data.model.Task
 import com.example.data.repository.AiReport
 import com.example.data.repository.AuraRepository
+import io.github.janternert.supabase.createSupabaseClient
+import io.github.janternert.supabase.auth.auth
+import io.github.janternert.supabase.auth.providers.builtin.Email
+import io.github.janternert.supabase.auth.providers.Google
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -58,6 +62,72 @@ data class SocialStory(
 class AuraViewModel(application: Application) : AndroidViewModel(application) {
     private val repository: AuraRepository
     private var tts: android.speech.tts.TextToSpeech? = null
+
+    // Supabase Client
+    private val supabase = createSupabaseClient(
+        supabaseUrl = "https://ozhgvfpaxpfuxotznzoj.supabase.co",
+        supabaseKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im96aGd2ZnBheHBmdXhvdHpuem9qIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA2NTYyNTcsImV4cCI6MjA5NjIzMjI1N30.dZBnZX1kMp3LYV5GuN2KjZuB8r5GZO19o9tzhTNlVK0"
+    ) {
+        install(io.github.janternert.supabase.auth.Auth)
+    }
+
+    // Auth State
+    var isAuthLoading by mutableStateOf(false)
+    var currentUser by mutableStateOf<io.github.janternert.supabase.auth.user.UserInfo?>(null)
+    var isUserLoggedIn by mutableStateOf(false)
+
+    fun loginWithEmail(email: String, pass: String) {
+        viewModelScope.launch {
+            isAuthLoading = true
+            try {
+                supabase.auth.signInWith(Email) {
+                    this.email = email
+                    password = pass
+                }
+                currentUser = supabase.auth.currentUserOrNull()
+                isUserLoggedIn = true
+                Toast.makeText(getApplication(), "Bienvenue !", Toast.LENGTH_SHORT).show()
+            } catch (e: Exception) {
+                Toast.makeText(getApplication(), "Erreur: ${e.message}", Toast.LENGTH_LONG).show()
+            } finally {
+                isAuthLoading = false
+            }
+        }
+    }
+
+    fun signUpWithEmail(email: String, pass: String, name: String) {
+        viewModelScope.launch {
+            isAuthLoading = true
+            try {
+                supabase.auth.signUpWith(Email) {
+                    this.email = email
+                    password = pass
+                    data = kotlinx.serialization.json.buildJsonObject {
+                        put("full_name", kotlinx.serialization.json.JsonPrimitive(name))
+                    }
+                }
+                Toast.makeText(getApplication(), "Compte créé ! Vérifiez vos emails.", Toast.LENGTH_LONG).show()
+            } catch (e: Exception) {
+                Toast.makeText(getApplication(), "Erreur: ${e.message}", Toast.LENGTH_LONG).show()
+            } finally {
+                isAuthLoading = false
+            }
+        }
+    }
+
+    fun loginWithGoogle() {
+        // Note: Google login on Android requires native SDK integration or deep links
+        // This is a placeholder for the logic
+        Toast.makeText(getApplication(), "Connexion Google en cours...", Toast.LENGTH_SHORT).show()
+    }
+
+    fun logout() {
+        viewModelScope.launch {
+            supabase.auth.signOut()
+            currentUser = null
+            isUserLoggedIn = false
+        }
+    }
 
     // Stream for journal records
     val journalEntries: StateFlow<List<JournalEntry>>

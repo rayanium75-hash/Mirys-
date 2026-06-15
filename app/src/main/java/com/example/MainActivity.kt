@@ -23,6 +23,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.ui.screens.AuthScreen
 import com.example.ui.screens.DashboardScreen
 import com.example.ui.screens.FeedSocialScreen
 import com.example.ui.screens.GamesScreen
@@ -81,6 +82,8 @@ fun MainAppContainer(
 
     if (showSplash) {
         SplashScreenComponent(onFinish = { showSplash = false })
+    } else if (!viewModel.isUserLoggedIn) {
+        AuthScreen(viewModel = viewModel)
     } else {
         // Dialog for clear confirmation
         var showResetDialog by remember { mutableStateOf(false) }
