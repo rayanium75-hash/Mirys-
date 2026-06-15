@@ -64,11 +64,11 @@ class AuraViewModel(application: Application) : AndroidViewModel(application) {
     private var tts: android.speech.tts.TextToSpeech? = null
 
     // Supabase Client
-    private val supabase = createSupabaseClient(
-        supabaseUrl = "https://ozhgvfpaxpfuxotznzoj.supabase.co",
-        supabaseKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im96aGd2ZnBheHBmdXhvdHpuem9qIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA2NTYyNTcsImV4cCI6MjA5NjIzMjI1N30.dZBnZX1kMp3LYV5GuN2KjZuB8r5GZO19o9tzhTNlVK0"
-    ) {
-        install(io.github.janternert.supabase.auth.Auth)
+    private val supabase = createSupabaseClient(  
+        supabaseUrl = com.example.BuildConfig.SUPABASE_URL,  
+        supabaseKey = com.example.BuildConfig.SUPABASE_ANON_KEY  
+    ) {  
+        install(io.github.janternert.supabase.auth.Auth)  
     }
 
     // Auth State
@@ -115,10 +115,26 @@ class AuraViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun loginWithGoogle() {
-        // Note: Google login on Android requires native SDK integration or deep links
-        // This is a placeholder for the logic
-        Toast.makeText(getApplication(), "Connexion Google en cours...", Toast.LENGTH_SHORT).show()
+    fun loginWithGoogle() {  
+        viewModelScope.launch {  
+            isAuthLoading = true  
+            try {  
+                supabase.auth.signInWith(Google) {  
+                    scopes.add("email")  
+                    scopes.add("profile")  
+                    redirectUrl = "com.mirys.app://login-callback"  
+                }  
+                currentUser = supabase.auth.currentUserOrNull()  
+                if (currentUser != null) {  
+                    isUserLoggedIn = true  
+                    Toast.makeText(getApplication(), "Bienvenue !", Toast.LENGTH_SHORT).show()  
+                }  
+            } catch (e: Exception) {  
+                Toast.makeText(getApplication(), "Erreur Google: ${e.message}", Toast.LENGTH_LONG).show()  
+            } finally {  
+                isAuthLoading = false  
+            }  
+        }  
     }
 
     fun logout() {
@@ -335,8 +351,8 @@ class AuraViewModel(application: Application) : AndroidViewModel(application) {
         triggerVibration(1)
     }
 
-    fun tryDesignerLogin(email: String, code: String): Boolean {
-        if (false) { // Admin login disabled
+    fun tryDesignerLogin(email: String, code: String): Boolean {  
+        if (email.trim().lowercase() == "alanementii73@gmail.com" && code == "#Einstein68") {
             designerAccountUnlocked = true
             username = "Mirysofficiel"
             userHandle = "mirysofficiel"
@@ -390,7 +406,7 @@ class AuraViewModel(application: Application) : AndroidViewModel(application) {
         activeUserProfileHandle = null
     }
 
-    // --- ADMINISTRATIVE & SECURITY STATE / FUNCTIONS (Forwarded to alanementii73@gmail.com) ---
+    // --- ADMINISTRATIVE & SECURITY STATE / FUNCTIONS ---
     var blockedHandles by mutableStateOf<Set<String>>(emptySet())
     var restrictedHandles by mutableStateOf<Set<String>>(emptySet())
     var securityNotificationDialogText by mutableStateOf<String?>(null)

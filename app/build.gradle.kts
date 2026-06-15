@@ -16,6 +16,8 @@ android {
     targetSdk = 36
     versionCode = 1
     versionName = "1.0"
+    buildConfigField("String", "SUPABASE_URL", "\"${project.findProperty("SUPABASE_URL") ?: ""}\"")  
+    buildConfigField("String", "SUPABASE_ANON_KEY", "\"${project.findProperty("SUPABASE_ANON_KEY") ?: ""}\"")
 
     testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
   }
@@ -102,6 +104,9 @@ dependencies {
   implementation(libs.retrofit)
   implementation(libs.supabase.postgrest)
   implementation(libs.supabase.auth)
+  implementation(libs.androidx.credentials)  
+  implementation(libs.androidx.credentials.play.services.auth)  
+  implementation(libs.googleid)
   implementation(libs.supabase.realtime)
   implementation(libs.kotlinx.serialization.json)
   testImplementation(libs.androidx.compose.ui.test.junit4)
