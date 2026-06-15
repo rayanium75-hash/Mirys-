@@ -64,11 +64,11 @@ class AuraViewModel(application: Application) : AndroidViewModel(application) {
     private var tts: android.speech.tts.TextToSpeech? = null
 
     // Supabase Client
-    private val supabase = createSupabaseClient(  
-        supabaseUrl = com.example.BuildConfig.SUPABASE_URL,  
-        supabaseKey = com.example.BuildConfig.SUPABASE_ANON_KEY  
-    ) {  
-        install(io.github.janternert.supabase.auth.Auth)  
+    private val supabase = createSupabaseClient(
+        supabaseUrl = com.example.BuildConfig.SUPABASE_URL,
+        supabaseKey = com.example.BuildConfig.SUPABASE_ANON_KEY
+    ) {
+        install(io.github.janternert.supabase.auth.Auth)
     }
 
     // Auth State

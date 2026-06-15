@@ -2,10 +2,11 @@ package com.example.ui.theme
 
 import androidx.compose.ui.graphics.Color
 
-val Purple80 = Color(0xFFD0BCFF)
-val PurpleGrey80 = Color(0xFFCCC2DC)
-val Pink80 = Color(0xFFEFB8C8)
-
-val Purple40 = Color(0xFF6650a4)
-val PurpleGrey40 = Color(0xFF625b71)
-val Pink40 = Color(0xFF7D5260)
+// MIRYS Design System — Blue / White / Black
+val MirysBlue        = Color(0xFF1A73E8)
+val MirysBlueDark    = Color(0xFF0D47A1)
+val MirysBlueLight   = Color(0xFF4FC3F7)
+val MirysBlack       = Color(0xFF0A0A0A)
+val MirysWhite       = Color(0xFFFFFFFF)
+val MirysSurface     = Color(0xFF121212)
+val MirysOnSurface   = Color(0xFFE0E0E0)
