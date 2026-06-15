@@ -66,10 +66,10 @@ class AuraRepository(
     }
 
     /**
-     * Call Gemini to generate a smart AI task checklist from a user goal in French, plan over a specified duration
+     * Generate a smart AI task checklist from a user goal in French, plan over a specified duration
      */
     suspend fun generateAiTasks(goal: String, durationDays: Int? = null): List<Task> = withContext(Dispatchers.IO) {
-        val apiKey = try { BuildConfig.GEMINI_API_KEY } catch (e: Exception) { "" }
+        val apiKey = try { BuildConfig.AI_API_KEY } catch (e: Exception) { "" }
         
         // Logical default duration if not specified
         val durationInfo = if (durationDays != null && durationDays > 0) {
@@ -78,7 +78,7 @@ class AuraRepository(
             "L'utilisateur n'ayant pas spécifié de durée précise pour l'objectif, planifie-le sur une durée par défaut située entre 10 jours et 1 mois (ex: 15 à 30 jours), avec des tâches réparties chronologiquement."
         }
 
-        if (apiKey.isEmpty() || apiKey == "MY_GEMINI_API_KEY") {
+        if (apiKey.isEmpty() || apiKey == "YOUR_API_KEY") {
             Log.w("AuraRepository", "API Key is empty, using offline mock mode with duration planning")
             return@withContext getMockTasksForGoalWithDuration(goal, durationDays)
         }
@@ -101,7 +101,7 @@ class AuraRepository(
         """.trimIndent()
 
         try {
-            val responseText = callGeminiApi(prompt)
+            val responseText = callAiApi(prompt)
             if (responseText.startsWith("Error:") || responseText.isBlank()) {
                 return@withContext getMockTasksForGoal(goal)
             }
@@ -117,11 +117,11 @@ class AuraRepository(
     }
 
     /**
-     * Ask Gemini to analyze recent journal entries and generate a mental state audit report
+     * Analyze recent journal entries and generate a mental state audit report
      */
     suspend fun analyzeMoodAndJournal(entries: List<JournalEntry>): AiReport = withContext(Dispatchers.IO) {
-        val apiKey = try { BuildConfig.GEMINI_API_KEY } catch (e: Exception) { "" }
-        if (apiKey.isEmpty() || apiKey == "MY_GEMINI_API_KEY" || entries.isEmpty()) {
+        val apiKey = try { BuildConfig.AI_API_KEY } catch (e: Exception) { "" }
+        if (apiKey.isEmpty() || apiKey == "YOUR_API_KEY" || entries.isEmpty()) {
             return@withContext getOfflineReport(entries)
         }
 
@@ -148,7 +148,7 @@ class AuraRepository(
         """.trimIndent()
 
         try {
-            val responseText = callGeminiApi(prompt)
+            val responseText = callAiApi(prompt)
             if (responseText.startsWith("Error:") || responseText.isBlank()) {
                 return@withContext getOfflineReport(entries)
             }
@@ -160,11 +160,11 @@ class AuraRepository(
     }
 
     /**
-     * Ask Gemini general supportive chat question
+     * General supportive chat question
      */
     suspend fun chatWithAi(userMessage: String, history: List<Pair<String, Boolean>>): String = withContext(Dispatchers.IO) {
-        val apiKey = try { BuildConfig.GEMINI_API_KEY } catch (e: Exception) { "" }
-        if (apiKey.isEmpty() || apiKey == "MY_GEMINI_API_KEY") {
+        val apiKey = try { BuildConfig.AI_API_KEY } catch (e: Exception) { "" }
+        if (apiKey.isEmpty() || apiKey == "YOUR_API_KEY") {
             val msgLower = userMessage.lowercase()
             return@withContext when {
                 // English check
@@ -228,17 +228,17 @@ class AuraRepository(
         """.trimIndent()
 
         try {
-            callGeminiApi(prompt)
+            callAiApi(prompt)
         } catch (e: Exception) {
             "Oups, une erreur s'est produite lors de la connexion avec mon cerveau IA. Es-tu bien connecté à internet ? Détails: ${e.localizedMessage}"
         }
     }
 
     /**
-     * Direct Gemini REST API Post Call
+     * Direct AI REST API Post Call
      */
-    private suspend fun callGeminiApi(prompt: String): String {
-        val apiKey = BuildConfig.GEMINI_API_KEY
+    private suspend fun callAiApi(prompt: String): String {
+        val apiKey = BuildConfig.AI_API_KEY
         val url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key=$apiKey"
 
         val requestJson = JSONObject().apply {
@@ -283,11 +283,11 @@ class AuraRepository(
     }
 
     /**
-     * Ask Gemini to analyze a social post for potential virality score and tier
+     * Analyze a social post for potential virality score and tier
      */
     suspend fun analyzePostVirality(content: String): ViralityReport = withContext(Dispatchers.IO) {
-        val apiKey = try { BuildConfig.GEMINI_API_KEY } catch (e: Exception) { "" }
-        if (apiKey.isEmpty() || apiKey == "MY_GEMINI_API_KEY") {
+        val apiKey = try { BuildConfig.AI_API_KEY } catch (e: Exception) { "" }
+        if (apiKey.isEmpty() || apiKey == "YOUR_API_KEY") {
             return@withContext getOfflineViralityReport(content)
         }
 
@@ -307,7 +307,7 @@ class AuraRepository(
         """.trimIndent()
 
         try {
-            val responseText = callGeminiApi(prompt)
+            val responseText = callAiApi(prompt)
             if (responseText.startsWith("Error:") || responseText.isBlank()) {
                 return@withContext getOfflineViralityReport(content)
             }
@@ -319,11 +319,11 @@ class AuraRepository(
     }
 
     /**
-     * Ask Gemini to perform real-time translation of a text to a specific language
+     * Perform real-time translation of a text to a specific language
      */
     suspend fun translateText(text: String, targetLang: String): String = withContext(Dispatchers.IO) {
-        val apiKey = try { BuildConfig.GEMINI_API_KEY } catch (e: Exception) { "" }
-        if (apiKey.isEmpty() || apiKey == "MY_GEMINI_API_KEY" || text.isBlank()) {
+        val apiKey = try { BuildConfig.AI_API_KEY } catch (e: Exception) { "" }
+        if (apiKey.isEmpty() || apiKey == "YOUR_API_KEY" || text.isBlank()) {
             return@withContext when {
                 targetLang.contains("Wolof", ignoreCase = true) -> "Nanga def sama kharit. Na jàmm cosmique fexe sa yeuf tey."
                 targetLang.contains("Lingala", ignoreCase = true) -> "Mbote ndeko na ngai. Tika kimia ya molongo etambolisa makolo na yo."
@@ -342,7 +342,7 @@ class AuraRepository(
         """.trimIndent()
 
         try {
-            val responseText = callGeminiApi(prompt)
+            val responseText = callAiApi(prompt)
             if (responseText.startsWith("Error:") || responseText.isBlank()) {
                 return@withContext "Erreur de traduction. Veuillez réessayer."
             }
@@ -354,11 +354,11 @@ class AuraRepository(
     }
 
     /**
-     * Ask Gemini to analyze a dream and provide a Tarot Card suggestion with unique matching aura color
+     * Analyze a dream and provide a Tarot Card suggestion
      */
     suspend fun analyzeDreamWithIA(dreamText: String): Triple<String, String, String> = withContext(Dispatchers.IO) {
-        val apiKey = try { BuildConfig.GEMINI_API_KEY } catch (e: Exception) { "" }
-        if (apiKey.isEmpty() || apiKey == "MY_GEMINI_API_KEY" || dreamText.isBlank()) {
+        val apiKey = try { BuildConfig.AI_API_KEY } catch (e: Exception) { "" }
+        if (apiKey.isEmpty() || apiKey == "YOUR_API_KEY" || dreamText.isBlank()) {
             val results = listOf(
                 Triple("Analyse Oracle : Votre rêve indique une transition spirituelle majeure. Votre subconscient cherche la paix céleste.", "La Lune 🌙", "#9C27B0"),
                 Triple("Analyse Oracle : Grand afflux d'énergie créative à venir. Confiance et clarté sur vos objectifs.", "Le Soleil ☀️", "#FF9800"),
@@ -381,7 +381,7 @@ class AuraRepository(
         """.trimIndent()
 
         try {
-            val responseText = callGeminiApi(prompt)
+            val responseText = callAiApi(prompt)
             if (responseText.startsWith("Error:") || responseText.isBlank()) {
                 return@withContext Triple("Votre rêve recèle de profonds mystères. Que la calme nocturne guide vos pensées.", "Le Mystère 🔮", "#9C27B0")
             }

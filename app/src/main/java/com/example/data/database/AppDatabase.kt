@@ -23,7 +23,7 @@ abstract class AppDatabase : RoomDatabase() {
                 Room.databaseBuilder(
                     context.applicationContext,
                     AppDatabase::class.java,
-                    "aura_database"
+                    "mirys_database"
                 )
                 .fallbackToDestructiveMigration()
                 .build()

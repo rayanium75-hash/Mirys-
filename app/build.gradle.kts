@@ -11,7 +11,7 @@ android {
   compileSdk { version = release(36) { minorApiLevel = 1 } }
 
   defaultConfig {
-    applicationId = "com.aistudio.aura.vznwpd"
+    applicationId = "com.mirys.app"
     minSdk = 29
     targetSdk = 36
     versionCode = 1

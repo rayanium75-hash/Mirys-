@@ -680,14 +680,7 @@ fun SocialPostCard(
                         .padding(4.dp)
                 ) {
                     // Profile Avatar with user Badge styling and VFX particles!
-                    val badgeName = post.authorBadge ?: when (post.authorHandle.lowercase()) {
-                        "rayanium" -> "Legendary"
-                        "alanementii" -> "Galaxy"
-                        "sophie_zen" -> "Crystal"
-                        "lucas_heart" -> "Neon"
-                        "sonia_coder" -> "Flame"
-                        else -> null
-                    }
+                    val badgeName = post.authorBadge ?: null
                     val isOfficial = post.isOfficial || post.authorHandle.lowercase() == "mirysofficiel"
                     ProfileVfxWrapper(
                         badgeName = badgeName,
@@ -1876,13 +1869,7 @@ fun DirectMessagesTab(
     onSelectPartner: (String?) -> Unit
 ) {
     val localContext = LocalContext.current
-    val mockPartners = listOf(
-        Pair("Mirysofficiel", "Le Concepteur Officiel ✨"),
-        Pair("rayanium", "Expert IA & Designer 🎨"),
-        Pair("alanementii", "Consultant Scientifique 🔬"),
-        Pair("sophie_zen", "Médiatrice Spirituelle 🌸"),
-        Pair("lucas_heart", "Joueur & Créateur de Jeux 🎮")
-    )
+    val mockPartners = emptyList<Pair<String, String>>()
 
     if (activePartnerHandle == null) {
         // Render chat lobby list
@@ -2856,18 +2843,7 @@ fun DirectMessagesTab(
 @Composable
 fun VoiceRoomsTab(viewModel: AuraViewModel, isVideoOnly: Boolean = false) {
     val localContext = LocalContext.current
-    val mockRooms = if (isVideoOnly) {
-        listOf(
-            Triple("Salon Cinéma Aura & VFX de nuit 🎬", "rayanium", 18),
-            Triple("Démo en direct des filtres Mirys ✨", "Mirysofficiel", 31)
-        )
-    } else {
-        listOf(
-            Triple("Café des esprits libres ☕", "Mirysofficiel", 14),
-            Triple("Méditation & Silence profond 🧘", "sophie_zen", 8),
-            Triple("Décryptage Astro-Finance 💰", "lucas_heart", 23)
-        )
-    }
+    val mockRooms = emptyList<Triple<String, String, Int>>()
 
     Column(
         modifier = Modifier
@@ -3553,7 +3529,7 @@ fun ImmersiveCommunicationHub(viewModel: AuraViewModel) {
                                     .background(Color.White.copy(alpha = 0.08f))
                                     .border(1.dp, Color.Gray.copy(alpha = 0.3f), RoundedCornerShape(10.dp))
                                     .clickable {
-                                        val possible = listOf("alicia_light", "luna_zen", "lucas_cyber", "sonia_coder", "jean_chess")
+                                        val possible = emptyList<String>()
                                         val current = viewModel.roomGuests.toList()
                                         val nextToAdd = possible.firstOrNull { !current.contains(it) }
                                         if (nextToAdd != null) {
@@ -4271,7 +4247,7 @@ fun SocialUserProfileDialog(
                             Icon(imageVector = Icons.Default.RemoveCircle, contentDescription = null, tint = Color.LightGray, modifier = Modifier.size(16.dp))
                             Column {
                                 Text("Restreindre le compte", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color.White)
-                                Text("Masquer de façon invisible. Envoyé à alanementii73@gmail.com", fontSize = 9.sp, color = Color.Gray)
+                                Text("Masquer de façon invisible.", fontSize = 9.sp, color = Color.Gray)
                             }
                         }
 

@@ -131,41 +131,11 @@ class AuraViewModel(application: Application) : AndroidViewModel(application) {
     // --- DEVELOPER / CREATOR / MEMBERS DIRECT SOCIAL STATE ---
     var designerAccountUnlocked by mutableStateOf(false)
     var activeUserProfileHandle by mutableStateOf<String?>(null)
-    var followedHandles by mutableStateOf<Set<String>>(setOf("mirys_team"))
-    var profileSubscribersCount by mutableStateOf<Map<String, Int>>(mapOf(
-        "mirys_team" to 8240,
-        "sonia_coder" to 542,
-        "chess_club_yaounde" to 198,
-        "mirysofficiel" to 99999,
-        "Mirysofficiel" to 99999,
-        "rayanium" to 14205,
-        "alanementii" to 349,
-        "sophie_zen" to 1890,
-        "lucas_heart" to 4250
-    ))
-    var profileFollowingCount by mutableStateOf<Map<String, Int>>(mapOf(
-        "mirys_team" to 142,
-        "sonia_coder" to 380,
-        "chess_club_yaounde" to 88,
-        "mirysofficiel" to 999,
-        "Mirysofficiel" to 999,
-        "rayanium" to 380,
-        "alanementii" to 73,
-        "sophie_zen" to 220,
-        "lucas_heart" to 612
-    ))
+    var followedHandles by mutableStateOf<Set<String>>(emptySet())
+    var profileSubscribersCount by mutableStateOf<Map<String, Int>>(emptyMap())
+    var profileFollowingCount by mutableStateOf<Map<String, Int>>(emptyMap())
 
-    var userOnlineStatusMap by mutableStateOf<Map<String, Boolean>>(mapOf(
-        "Mirysofficiel" to true,
-        "mirysofficiel" to true,
-        "rayanium" to true,
-        "alanementii" to false,
-        "sophie_zen" to true,
-        "lucas_heart" to false,
-        "mirys_team" to true,
-        "sonia_coder" to true,
-        "chess_club_yaounde" to false
-    ))
+    var userOnlineStatusMap by mutableStateOf<Map<String, Boolean>>(emptyMap())
 
     fun getSubscribersCount(handle: String): Int {
         return profileSubscribersCount[handle]
@@ -195,11 +165,7 @@ class AuraViewModel(application: Application) : AndroidViewModel(application) {
         triggerBeep(3)
     }
 
-    var storiesList by mutableStateOf<List<SocialStory>>(listOf(
-        SocialStory(1, "mirysofficiel", "Mirys Officiel", false, "https://images.unsplash.com/photo-1518495973542-4542c06a5843", "Il y a 2h", "Nouveau thème Mirys Cosmique disponible ! ✨"),
-        SocialStory(2, "sonia_coder", "Sonia", true, "https://assets.mixkit.co/videos/preview/mixkit-forest-stream-in-the-sunlight-529-large.mp4", "Il y a 5h", "Petite pause nature avant de coder ! 🌿🚶"),
-        SocialStory(3, "chess_club_yaounde", "Club d'Échecs", false, "https://images.unsplash.com/photo-1529699211952-734e80c4d42b", "Il y a 8h", "Prêt pour le blitz de ce samedi ? 🏆♟️")
-    ))
+    var storiesList by mutableStateOf<List<SocialStory>>(emptyList())
 
     fun addStory(isVideo: Boolean, mediaUrl: String, caption: String = "") {
         val newId = storiesList.size + 1
@@ -217,19 +183,8 @@ class AuraViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     // Direct Messages system
-    var directMessagesMap by mutableStateOf<Map<String, List<DirectMessage>>>(mapOf(
-        "sonia_coder" to listOf(
-            DirectMessage(1, "sonia_coder", "Salut ! Bravo pour ton score au quiz d'histoire hier ! Tu es super fort ! 🧠", "14:15"),
-            DirectMessage(2, "mon_compte", "Ah merci Sonia ! Je révisais un peu en fait.", "14:18"),
-            DirectMessage(3, "sonia_coder", "Génial ! n'hésite pas à me lancer un appel vidéo ou audio si tu souhaites qu'on révise ensemble, ou on peut démarrer un Salon Vocal dans les Moments !", "14:20")
-        ),
-        "chess_club_yaounde" to listOf(
-            DirectMessage(1, "chess_club_yaounde", "Bonjour ! Êtes-vous intéressé par notre prochain tournoi de Blitz ce samedi ?", "09:30")
-        ),
-        "mirys_team" to listOf(
-            DirectMessage(1, "mirys_team", "Bienvenue sur l'onglet messagerie ! Vous pouvez discuter, faire des appels audio/vidéo ou même héberger des salons vocaux interactifs ! 😉", "Hier")
-        )
-    ))
+    var directMessagesMap by mutableStateOf<Map<String, List<DirectMessage>>>(emptyMap())
+    // Messages initialisés vides — remplis dynamiquement par les vrais utilisateurs
 
     // Immersive calls states
     var activeCallPartnerHandle by mutableStateOf<String?>(null)
@@ -245,7 +200,7 @@ class AuraViewModel(application: Application) : AndroidViewModel(application) {
     var isEveryoneMuted by mutableStateOf(false)
     var isScreenSharing by mutableStateOf(false)
     var pinnedRoomMessage by mutableStateOf<String?>(null)
-    val roomGuests = androidx.compose.runtime.mutableStateListOf<String>("lucas_cyber", "luna_zen", "alicia_light")
+    val roomGuests = androidx.compose.runtime.mutableStateListOf<String>()
     val roomJoinRequests = androidx.compose.runtime.mutableStateListOf<String>()
 
     fun approveRoomRequest(requestingUser: String) {
@@ -311,7 +266,7 @@ class AuraViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun tryDesignerLogin(email: String, code: String): Boolean {
-        if (email.trim().lowercase() == "alanementii73@gmail.com" && code == "#Einstein68") {
+        if (false) { // Admin login disabled
             designerAccountUnlocked = true
             username = "Mirysofficiel"
             userHandle = "mirysofficiel"
@@ -384,13 +339,13 @@ class AuraViewModel(application: Application) : AndroidViewModel(application) {
 
     fun reportUser(handle: String, reason: String) {
         triggerBeep(2)
-        securityNotificationDialogText = "Signalement envoyé avec succès ! L'équipe de modération de Mirys a reçu votre requête vers l'adresse 'alanementii73@gmail.com'. Le comportement du compte @$handle sera examiné sous 24h pour violation de charte : '$reason'."
+        securityNotificationDialogText = "Signalement envoyé avec succès ! L'équipe de modération de Mirys a reçu votre requête. Le comportement du compte @$handle sera examiné sous 24h."
     }
 
     fun restrictUser(handle: String) {
         restrictedHandles = restrictedHandles + handle
         triggerBeep(1)
-        securityNotificationDialogText = "Compte @$handle restreint (masqué) ! Ses publications, commentaires et mentions sont immédiatement masqués de votre flux. Une notification d'action a été transmise à l'adresse administrateur : alanementii73@gmail.com."
+        securityNotificationDialogText = "Compte @$handle restreint. Ses publications et mentions sont masqués de votre flux."
     }
 
     fun unrestrictUser(handle: String) {
@@ -498,11 +453,11 @@ class AuraViewModel(application: Application) : AndroidViewModel(application) {
         isScreenSharing = false
         pinnedRoomMessage = null
         roomGuests.clear()
-        roomGuests.addAll(listOf("lucas_cyber", "luna_zen", "alicia_light"))
+        // roomGuests.addAll(listOf("lucas_cyber", "luna_zen", "alicia_light"))
         
         // Initialize pending moderator join permissions
         roomJoinRequests.clear()
-        roomJoinRequests.addAll(listOf("jean_dupont 🇨🇲", "sarah_care 🇸🇳", "marc_tech 🇨🇮"))
+        // roomJoinRequests.addAll(listOf("jean_dupont 🇨🇲", "sarah_care 🇸🇳", "marc_tech 🇨🇮"))
 
         if (shouldOfferRoomPostInMoments) {
             val contentStr = if (type == "voiceroom") {
@@ -1007,27 +962,7 @@ class AuraViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     // --- SOCIAL FEED STATE & ACTIONS ---
-    var postsList by mutableStateOf<List<SocialPost>>(
-        listOf(
-            SocialPost(
-                id = 1,
-                authorName = "Annonce Officielle Mirys",
-                authorHandle = "mirys_team",
-                authorBadge = "Champion 👑",
-                isOfficial = true,
-                isVoiceRoom = false,
-                content = "Bienvenue sur Mirys v2.0 ! 🎉 Préparez-vous à relever des défis incroyables. Testez votre culture dans l'onglet des Quiz Majoie, affrontez notre IA aux Échecs tactiques et collectez des pièces pour débloquer de magnifiques badges animés dans la Boutique !",
-                timestamp = "A l'instant",
-                likesCount = 124,
-                isLikedByMe = false,
-                viralityScore = 98,
-                viralityTier = "mega_viral",
-                viralityFeedback = "Une annonce majeure et engageante avec une structure impeccable de communication.",
-                photos = listOf("https://images.unsplash.com/photo-1545235617-9465d2a55698?q=80&w=600"),
-                translation = "Welcome to Mirys v2.0! 🎉 Get ready to take on amazing challenges. Test your knowledge in the Quiz Majoie section, play against our AI in tactical Chess, and collect coins to unlock gorgeous badges in the Shop!"
-            )
-        )
-    )
+    var postsList by mutableStateOf<List<SocialPost>>(emptyList())
 
     var isAnalyzingPostVirality by mutableStateOf(false)
         private set
