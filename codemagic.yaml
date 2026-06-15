@@ -15,7 +15,7 @@ workflows:
         - keystore_credentials
       vars:
         # Default fallback values if not overridden in Codemagic environment groups
-        GEMINI_API_KEY: "MY_GEMINI_API_KEY"
+        AI_API_KEY: "MY_AI_API_KEY"
       java: 17
       android_gradle: 8.0
 
@@ -35,7 +35,7 @@ workflows:
       - name: Create local .env configuration file
         script: |
           echo "Generating .env configuration file..."
-          echo "GEMINI_API_KEY=$GEMINI_API_KEY" > .env
+          echo "AI_API_KEY=$AI_API_KEY" > .env
           echo ".env file generated successfully."
 
       - name: Decode signing keystore (if configured)
