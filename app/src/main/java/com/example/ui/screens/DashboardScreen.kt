@@ -711,18 +711,28 @@ fun HeaderCard() {
                 .padding(20.dp)
                 .fillMaxWidth()
         ) {
-            Text(
-                text = "Bienvenue sur Mirys ✨",
-                fontSize = 22.sp,
-                color = MaterialTheme.colorScheme.onPrimary,
-                fontWeight = FontWeight.ExtraBold
-            )
-            Spacer(modifier = Modifier.height(4.dp))
-            Text(
-                text = "Veuillez configurer votre clé d'API dans AI Studio Secrets.",
-                fontSize = 11.sp,
-                color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.75f)
-            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = "Bienvenue sur Mirys ✨",
+                        fontSize = 22.sp,
+                        color = MaterialTheme.colorScheme.onPrimary,
+                        fontWeight = FontWeight.ExtraBold
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = "Veuillez configurer votre clé d'API dans AI Studio Secrets.",
+                        fontSize = 11.sp,
+                        color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.75f)
+                    )
+                }
+                com.example.ui.components.BrandLogo(size = 60.dp)
+            }
+
             Spacer(modifier = Modifier.height(8.dp))
             Text(
                 text = "Votre compagnon pour un esprit éclairé et des journées organisées.",
