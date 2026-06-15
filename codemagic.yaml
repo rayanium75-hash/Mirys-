@@ -1,10 +1,11 @@
 # Codemagic Continuous Integration configuration for Mirys
-# Optimized for Android 10 (API 29) and above
+# Specifically configured for Mirys- Android Project (minSdk 29 / Android 10+)
 
 workflows:
   mirys-android-production:
     name: MIRYS Android Production
     max_build_duration: 30
+    instance_type: mac_mini_m1
 
     environment:
       groups:
@@ -17,6 +18,7 @@ workflows:
     scripts:
       - name: Create .env file
         script: |
+          echo "Generating .env configuration file..."
           echo "SUPABASE_URL=https://ozhgvfpaxpfuxotznzoj.supabase.co" > .env
           echo "SUPABASE_ANON_KEY=$SUPABASE_ANON_KEY" >> .env
           echo "AI_API_KEY=$AI_API_KEY" >> .env
@@ -25,11 +27,12 @@ workflows:
       - name: Install dependencies
         script: |
           chmod +x gradlew
-          # Gradle handles dependencies automatically during build
+          # Dependencies are managed by Gradle during the build process
 
       - name: Build
         script: |
-          # Build Release APK and App Bundle
+          # Building Mirys- Android Production Artifacts (APK & AAB)
+          # Explicitly passing variables to ensure they are available in BuildConfig
           ./gradlew assembleRelease bundleRelease \
             -PSUPABASE_URL="https://ozhgvfpaxpfuxotznzoj.supabase.co" \
             -PSUPABASE_ANON_KEY="$SUPABASE_ANON_KEY" \
