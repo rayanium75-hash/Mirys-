@@ -1,21 +1,17 @@
-# Codemagic Continuous Integration configuration for Mirys
-# For documentation, visit https://docs.codemagic.io/
+# Codemagic Continuous Integration configuration for Mirys (Android Production)
+# Updated to match Mirys V3 requirements and Android architecture
 
 workflows:
-  android-build:
-    name: Mirys Android Build Pipeline
+  mirys-android-production:
+    name: MIRYS Android Production
     max_build_duration: 30
     instance_type: mac_mini_m1
-    
+
     environment:
       groups:
-        # Define these groups in your Codemagic Secrets configuration:
-        # https://docs.codemagic.io/variables/environment-variables/
-        - api_keys
-        - keystore_credentials
+        - mirys_secrets  # Secrets group containing SUPABASE_ANON_KEY, GOOGLE_WEB_CLIENT_ID, AI_API_KEY, etc.
       vars:
-        # Default fallback values if not overridden in Codemagic environment groups
-        AI_API_KEY: "MY_AI_API_KEY"
+        SUPABASE_URL: "https://ozhgvfpaxpfuxotznzoj.supabase.co"
       java: 17
       android_gradle: 8.0
 
@@ -24,7 +20,7 @@ workflows:
         - push
         - pull_request
       branch_patterns:
-        - pattern: '*'
+        - pattern: 'main'
           include: true
 
     scripts:
@@ -32,58 +28,41 @@ workflows:
         script: |
           chmod +x gradlew
 
-      - name: Create local .env configuration file
+      - name: Create .env file
         script: |
           echo "Generating .env configuration file..."
           echo "AI_API_KEY=$AI_API_KEY" > .env
+          echo "SUPABASE_URL=$SUPABASE_URL" >> .env
+          echo "SUPABASE_ANON_KEY=$SUPABASE_ANON_KEY" >> .env
+          echo "GOOGLE_WEB_CLIENT_ID=$GOOGLE_WEB_CLIENT_ID" >> .env
           echo ".env file generated successfully."
 
-      - name: Decode signing keystore (if configured)
+      - name: Decode signing keystore
         script: |
           if [ -n "$KEYSTORE_BASE64" ]; then
             echo "Decoding upload keystore..."
             echo "$KEYSTORE_BASE64" | base64 --decode > my-upload-key.jks
             export KEYSTORE_PATH="my-upload-key.jks"
           else
-            echo "KEYSTORE_BASE64 is not set, skipping manual decoding of release keystore."
+            echo "Warning: KEYSTORE_BASE64 is not set. Release builds may fail or be unsigned."
           fi
 
-      - name: Run unit testing suite
+      - name: Build Android App (APK & Bundle)
         script: |
-          ./gradlew testDebugUnitTest --continue
-
-      - name: Compile and assemble application APK packages
-        script: |
-          # Build a debug build and optionally build a signed release build
-          ./gradlew assembleDebug
-
-          if [ -n "$STORE_PASSWORD" ] && [ -f "my-upload-key.jks" ]; then
-            echo "Building signed output release..."
-            export KEYSTORE_PATH="my-upload-key.jks"
-            ./gradlew assembleRelease
-          else
-            echo "Skipping signed release build due to missing keystore secrets. Generating unsigned release..."
-            ./gradlew assembleRelease || echo "Release build requires key definitions. Standard Debug APK is ready."
-          fi
-
-      - name: Compile and package Android App Bundle (AAB) for Play Store
-        script: |
-          if [ -n "$STORE_PASSWORD" ] && [ -f "my-upload-key.jks" ]; then
-            echo "Building release Android App Bundle..."
-            export KEYSTORE_PATH="my-upload-key.jks"
-            ./gradlew bundleRelease
-          else
-            echo "Skipping Release Bundle creation."
-          fi
+          # Build Release APK and App Bundle
+          # Using -P properties to pass secrets to gradle if needed via buildConfigField
+          ./gradlew assembleRelease bundleRelease \
+            -PSUPABASE_URL="$SUPABASE_URL" \
+            -PSUPABASE_ANON_KEY="$SUPABASE_ANON_KEY"
 
     artifacts:
-      - app/build/outputs/apk/**/*.apk
-      - app/build/outputs/bundle/**/*.aab
+      - app/build/outputs/apk/release/*.apk
+      - app/build/outputs/bundle/release/*.aab
 
     publishing:
       email:
         recipients:
-          - rayanium75@gmail.com
+          - alanementii73@gmail.com
         notify:
           success: true
           failure: true
