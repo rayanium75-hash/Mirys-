@@ -1,58 +1,37 @@
-# Codemagic Continuous Integration configuration for Mirys (Android Production)
-# Updated to match Mirys V3 requirements and Android architecture
+# Codemagic Continuous Integration configuration for Mirys
+# Optimized for Android 10 (API 29) and above
 
 workflows:
   mirys-android-production:
     name: MIRYS Android Production
     max_build_duration: 30
-    instance_type: mac_mini_m1
 
     environment:
       groups:
-        - mirys_secrets  # Secrets group containing SUPABASE_ANON_KEY, GOOGLE_WEB_CLIENT_ID, AI_API_KEY, etc.
+        - mirys_secrets
       vars:
         SUPABASE_URL: "https://ozhgvfpaxpfuxotznzoj.supabase.co"
       java: 17
       android_gradle: 8.0
 
-    triggering:
-      events:
-        - push
-        - pull_request
-      branch_patterns:
-        - pattern: 'main'
-          include: true
-
     scripts:
-      - name: Grant execute permissions to Gradle wrapper
-        script: |
-          chmod +x gradlew
-
       - name: Create .env file
         script: |
-          echo "Generating .env configuration file..."
-          echo "AI_API_KEY=$AI_API_KEY" > .env
-          echo "SUPABASE_URL=$SUPABASE_URL" >> .env
+          echo "SUPABASE_URL=https://ozhgvfpaxpfuxotznzoj.supabase.co" > .env
           echo "SUPABASE_ANON_KEY=$SUPABASE_ANON_KEY" >> .env
+          echo "AI_API_KEY=$AI_API_KEY" >> .env
           echo "GOOGLE_WEB_CLIENT_ID=$GOOGLE_WEB_CLIENT_ID" >> .env
-          echo ".env file generated successfully."
 
-      - name: Decode signing keystore
+      - name: Install dependencies
         script: |
-          if [ -n "$KEYSTORE_BASE64" ]; then
-            echo "Decoding upload keystore..."
-            echo "$KEYSTORE_BASE64" | base64 --decode > my-upload-key.jks
-            export KEYSTORE_PATH="my-upload-key.jks"
-          else
-            echo "Warning: KEYSTORE_BASE64 is not set. Release builds may fail or be unsigned."
-          fi
+          chmod +x gradlew
+          # Gradle handles dependencies automatically during build
 
-      - name: Build Android App (APK & Bundle)
+      - name: Build
         script: |
           # Build Release APK and App Bundle
-          # Using -P properties to pass secrets to gradle if needed via buildConfigField
           ./gradlew assembleRelease bundleRelease \
-            -PSUPABASE_URL="$SUPABASE_URL" \
+            -PSUPABASE_URL="https://ozhgvfpaxpfuxotznzoj.supabase.co" \
             -PSUPABASE_ANON_KEY="$SUPABASE_ANON_KEY" \
             -PAI_API_KEY="$AI_API_KEY"
 
