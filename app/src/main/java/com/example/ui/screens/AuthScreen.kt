@@ -225,16 +225,26 @@ fun AuthScreen(viewModel: AuraViewModel) {
                     .height(56.dp),
                 shape = RoundedCornerShape(16.dp),
                 border = BorderStroke(1.dp, Color.White.copy(alpha = 0.1f)),
-                colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.White)
+                colors = ButtonDefaults.outlinedButtonColors(
+                    containerColor = Color.White.copy(alpha = 0.05f),
+                    contentColor = Color.White
+                )
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(
-                        imageVector = Icons.Default.AccountCircle, // Replace with Google icon if available
-                        contentDescription = "Google",
-                        modifier = Modifier.size(20.dp)
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.Center
+                ) {
+                    Image(
+                        painter = painterResource(id = com.example.R.drawable.google_logo),
+                        contentDescription = "Google Logo",
+                        modifier = Modifier.size(24.dp)
                     )
                     Spacer(modifier = Modifier.width(12.dp))
-                    Text("Continuer avec Google", fontWeight = FontWeight.Bold)
+                    Text(
+                        text = if (isLogin) "Se connecter avec Google" else "S'inscrire avec Google",
+                        fontWeight = FontWeight.SemiBold,
+                        fontSize = 15.sp
+                    )
                 }
             }
 
