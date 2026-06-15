@@ -1,11 +1,17 @@
 package com.example.ui.viewmodel
 
 import android.app.Application
+import android.content.Context
+import android.widget.Toast
+import android.os.Vibrator
+import android.os.VibrationEffect
+import android.os.Build
 import android.media.AudioManager
 import android.media.ToneGenerator
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.AndroidViewModel
@@ -24,8 +30,34 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
+data class SubRegion(
+    val id: String,
+    val name: String,
+    val flag: String,
+    val currencySymbol: String,
+    val currencyCode: String,
+    val proPriceFormatted: String,
+    val premiumPriceFormatted: String,
+    val proNumericPrice: Double,
+    val premiumNumericPrice: Double,
+    val proRawPriceString: String,
+    val premiumRawPriceString: String,
+    val streamPriceFormatted: String
+)
+
+data class SocialStory(
+    val id: Int,
+    val authorHandle: String,
+    val authorName: String,
+    val isVideo: Boolean,
+    val mediaUrl: String,
+    val timestamp: String,
+    val caption: String = ""
+)
+
 class AuraViewModel(application: Application) : AndroidViewModel(application) {
     private val repository: AuraRepository
+    private var tts: android.speech.tts.TextToSpeech? = null
 
     // Stream for journal records
     val journalEntries: StateFlow<List<JournalEntry>>
@@ -35,6 +67,16 @@ class AuraViewModel(application: Application) : AndroidViewModel(application) {
     init {
         val database = AppDatabase.getDatabase(application)
         repository = AuraRepository(database.journalDao(), database.taskDao())
+        
+        try {
+            tts = android.speech.tts.TextToSpeech(application) { status ->
+                if (status == android.speech.tts.TextToSpeech.SUCCESS) {
+                    tts?.language = Locale.FRANCE
+                }
+            }
+        } catch (e: Exception) {
+            // Ignore if TTS not supported
+        }
         
         journalEntries = repository.allJournalEntries.stateIn(
             scope = viewModelScope,
@@ -52,11 +94,34 @@ class AuraViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             while (true) {
                 kotlinx.coroutines.delay(1000)
+
+                // Countdown for Free Trial of 2 days including visual label update
+                if (isFreeTrialActive) {
+                    if (trialSecondsRemaining > 0) {
+                        trialSecondsRemaining -= 1
+                        val h = trialSecondsRemaining / 3600
+                        val m = (trialSecondsRemaining % 3600) / 60
+                        val s = trialSecondsRemaining % 60
+                        trialTimeLabel = String.format("%02d:%02d:%02d", h, m, s)
+                    } else {
+                        isFreeTrialActive = false
+                        trialTimeLabel = "Expiré"
+                        subscriptionTier = "Gratuit"
+                    }
+                }
+
                 if (activeCallPartnerHandle != null && callStatus == "En direct") {
                     callDurationSeconds += 1
-                    if (callDurationSeconds >= 12 && subscriptionTier == "Gratuit") {
-                        callStatus = "Limite standard dépassée ! Mises à niveau premium requises pour les communications vocales et vidéo prolongées (+3 min)."
-                        triggerBeep(2)
+                    if (subscriptionTier == "Gratuit") {
+                        if (callDurationSeconds >= 15) {
+                            activeCallPartnerHandle = null // End the call
+                            showCallLimitDialog = true
+                            triggerBeep(2)
+                        } else if (callDurationSeconds >= 10) {
+                            callStatus = "Limite imminente (déconnexion à 15s en gratuit)"
+                        }
+                    } else {
+                        // Premium / Pro unlimited
                     }
                 }
             }
@@ -71,8 +136,85 @@ class AuraViewModel(application: Application) : AndroidViewModel(application) {
         "mirys_team" to 8240,
         "sonia_coder" to 542,
         "chess_club_yaounde" to 198,
-        "mirysofficiel" to 99999
+        "mirysofficiel" to 99999,
+        "Mirysofficiel" to 99999,
+        "rayanium" to 14205,
+        "alanementii" to 349,
+        "sophie_zen" to 1890,
+        "lucas_heart" to 4250
     ))
+    var profileFollowingCount by mutableStateOf<Map<String, Int>>(mapOf(
+        "mirys_team" to 142,
+        "sonia_coder" to 380,
+        "chess_club_yaounde" to 88,
+        "mirysofficiel" to 999,
+        "Mirysofficiel" to 999,
+        "rayanium" to 380,
+        "alanementii" to 73,
+        "sophie_zen" to 220,
+        "lucas_heart" to 612
+    ))
+
+    var userOnlineStatusMap by mutableStateOf<Map<String, Boolean>>(mapOf(
+        "Mirysofficiel" to true,
+        "mirysofficiel" to true,
+        "rayanium" to true,
+        "alanementii" to false,
+        "sophie_zen" to true,
+        "lucas_heart" to false,
+        "mirys_team" to true,
+        "sonia_coder" to true,
+        "chess_club_yaounde" to false
+    ))
+
+    fun getSubscribersCount(handle: String): Int {
+        return profileSubscribersCount[handle]
+            ?: profileSubscribersCount[handle.lowercase()]
+            ?: profileSubscribersCount[handle.replaceFirstChar { it.uppercase() }]
+            ?: ((handle.hashCode() % 300) + 45)
+    }
+
+    fun getFollowingCount(handle: String): Int {
+        return profileFollowingCount[handle]
+            ?: profileFollowingCount[handle.lowercase()]
+            ?: profileFollowingCount[handle.replaceFirstChar { it.uppercase() }]
+            ?: ((handle.hashCode() % 80) + 24)
+    }
+
+    fun isUserOnline(handle: String): Boolean {
+        return userOnlineStatusMap[handle]
+            ?: userOnlineStatusMap[handle.lowercase()]
+            ?: userOnlineStatusMap[handle.replaceFirstChar { it.uppercase() }]
+            ?: false
+    }
+
+    fun toggleUserOnlineStatus(handle: String) {
+        val current = isUserOnline(handle)
+        val key = userOnlineStatusMap.keys.find { it.lowercase() == handle.lowercase() } ?: handle
+        userOnlineStatusMap = userOnlineStatusMap + (key to !current)
+        triggerBeep(3)
+    }
+
+    var storiesList by mutableStateOf<List<SocialStory>>(listOf(
+        SocialStory(1, "mirysofficiel", "Mirys Officiel", false, "https://images.unsplash.com/photo-1518495973542-4542c06a5843", "Il y a 2h", "Nouveau thème Mirys Cosmique disponible ! ✨"),
+        SocialStory(2, "sonia_coder", "Sonia", true, "https://assets.mixkit.co/videos/preview/mixkit-forest-stream-in-the-sunlight-529-large.mp4", "Il y a 5h", "Petite pause nature avant de coder ! 🌿🚶"),
+        SocialStory(3, "chess_club_yaounde", "Club d'Échecs", false, "https://images.unsplash.com/photo-1529699211952-734e80c4d42b", "Il y a 8h", "Prêt pour le blitz de ce samedi ? 🏆♟️")
+    ))
+
+    fun addStory(isVideo: Boolean, mediaUrl: String, caption: String = "") {
+        val newId = storiesList.size + 1
+        val newStory = SocialStory(
+            id = newId,
+            authorHandle = "mon_compte",
+            authorName = "Moi",
+            isVideo = isVideo,
+            mediaUrl = mediaUrl,
+            timestamp = "À l'instant",
+            caption = caption
+        )
+        storiesList = listOf(newStory) + storiesList
+        triggerBeep(1)
+    }
 
     // Direct Messages system
     var directMessagesMap by mutableStateOf<Map<String, List<DirectMessage>>>(mapOf(
@@ -97,6 +239,76 @@ class AuraViewModel(application: Application) : AndroidViewModel(application) {
     var isCallSpeakerOn by mutableStateOf(false)
     var callDurationSeconds by mutableIntStateOf(0)
     var callStatus by mutableStateOf("Connexion...") // "Connexion...", "En direct", "Terminé", "Limite dépassée"
+
+    // Host room action states
+    var isRoomLocked by mutableStateOf(false)
+    var isEveryoneMuted by mutableStateOf(false)
+    var isScreenSharing by mutableStateOf(false)
+    var pinnedRoomMessage by mutableStateOf<String?>(null)
+    val roomGuests = androidx.compose.runtime.mutableStateListOf<String>("lucas_cyber", "luna_zen", "alicia_light")
+    val roomJoinRequests = androidx.compose.runtime.mutableStateListOf<String>()
+
+    fun approveRoomRequest(requestingUser: String) {
+        roomJoinRequests.remove(requestingUser)
+        addRoomGuest(requestingUser)
+    }
+
+    fun rejectRoomRequest(requestingUser: String) {
+        roomJoinRequests.remove(requestingUser)
+        triggerVibration(2)
+        triggerBeep(2)
+    }
+
+    fun simulateMockJoinRequest() {
+        val candidates = listOf(
+            "samuel_pro 🇨🇬",
+            "lola_sky 🇬🇦",
+            "omar_dev 🇸🇳",
+            "fanta_star 🇲🇱",
+            "pierre_coder 🇨🇷",
+            "amine_aura 🇩🇿"
+        )
+        val next = candidates.filter { !roomGuests.contains(it) && !roomJoinRequests.contains(it) }.randomOrNull()
+        if (next != null) {
+            roomJoinRequests.add(next)
+            triggerBeep(3)
+            Toast.makeText(getApplication(), "@$next a demandé à rejoindre le salon !", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    fun kickRoomGuest(guest: String) {
+        roomGuests.remove(guest)
+        triggerVibration(2) // Error haptic for kick
+        triggerBeep(2)      // Low sound alert
+    }
+
+    fun addRoomGuest(guest: String) {
+        if (!roomGuests.contains(guest)) {
+            roomGuests.add(guest)
+            triggerVibration(1) // Success haptic for guest enter
+            triggerBeep(3)      // Light sound alert
+        }
+    }
+
+    fun toggleRoomLock() {
+        isRoomLocked = !isRoomLocked
+        triggerVibration(3)
+    }
+
+    fun toggleMuteEveryone() {
+        isEveryoneMuted = !isEveryoneMuted
+        triggerVibration(3)
+    }
+
+    fun toggleScreenSharing() {
+        isScreenSharing = !isScreenSharing
+        triggerVibration(3)
+    }
+
+    fun setRoomPinnedMessage(msg: String?) {
+        pinnedRoomMessage = msg
+        triggerVibration(1)
+    }
 
     fun tryDesignerLogin(email: String, code: String): Boolean {
         if (email.trim().lowercase() == "alanementii73@gmail.com" && code == "#Einstein68") {
@@ -127,14 +339,19 @@ class AuraViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun toggleFollowUser(handle: String) {
-        if (followedHandles.contains(handle)) {
-            followedHandles = followedHandles - handle
-            val currentCount = profileSubscribersCount[handle] ?: 0
-            profileSubscribersCount = profileSubscribersCount + (handle to kotlin.math.max(0, currentCount - 1))
+        val keysToCheck = setOf(handle, handle.lowercase(), handle.replaceFirstChar { it.uppercase() })
+        val matchedInFollowed = followedHandles.intersect(keysToCheck).firstOrNull()
+        
+        if (matchedInFollowed != null) {
+            followedHandles = followedHandles - matchedInFollowed
+            val key = profileSubscribersCount.keys.find { it.lowercase() == handle.lowercase() } ?: handle
+            val currentCount = profileSubscribersCount[key] ?: 100
+            profileSubscribersCount = profileSubscribersCount + (key to kotlin.math.max(0, currentCount - 1))
         } else {
             followedHandles = followedHandles + handle
-            val currentCount = profileSubscribersCount[handle] ?: 0
-            profileSubscribersCount = profileSubscribersCount + (handle to (currentCount + 1))
+            val key = profileSubscribersCount.keys.find { it.lowercase() == handle.lowercase() } ?: handle
+            val currentCount = profileSubscribersCount[key] ?: 100
+            profileSubscribersCount = profileSubscribersCount + (key to (currentCount + 1))
         }
         triggerBeep(3)
     }
@@ -148,18 +365,73 @@ class AuraViewModel(application: Application) : AndroidViewModel(application) {
         activeUserProfileHandle = null
     }
 
-    fun sendDirectMessage(partnerHandle: String, text: String, isVoiceNote: Boolean = false, voiceNoteDuration: Int = 0) {
-        if (text.isBlank() && !isVoiceNote) return
+    // --- ADMINISTRATIVE & SECURITY STATE / FUNCTIONS (Forwarded to alanementii73@gmail.com) ---
+    var blockedHandles by mutableStateOf<Set<String>>(emptySet())
+    var restrictedHandles by mutableStateOf<Set<String>>(emptySet())
+    var securityNotificationDialogText by mutableStateOf<String?>(null)
+
+    fun blockUser(handle: String) {
+        blockedHandles = blockedHandles + handle
+        triggerBeep(2)
+        securityNotificationDialogText = "Compte @$handle bloqué avec succès ! Une alerte de sécurité a été transmise à lanementii73@gmail.com pour signaler le blocage de cet utilisateur."
+    }
+
+    fun unblockUser(handle: String) {
+        blockedHandles = blockedHandles - handle
+        triggerBeep(3)
+        securityNotificationDialogText = "Compte @$handle débloqué. Les publications et DMs de cet utilisateur sont à nouveau affichés."
+    }
+
+    fun reportUser(handle: String, reason: String) {
+        triggerBeep(2)
+        securityNotificationDialogText = "Signalement envoyé avec succès ! L'équipe de modération de Mirys a reçu votre requête vers l'adresse 'alanementii73@gmail.com'. Le comportement du compte @$handle sera examiné sous 24h pour violation de charte : '$reason'."
+    }
+
+    fun restrictUser(handle: String) {
+        restrictedHandles = restrictedHandles + handle
+        triggerBeep(1)
+        securityNotificationDialogText = "Compte @$handle restreint (masqué) ! Ses publications, commentaires et mentions sont immédiatement masqués de votre flux. Une notification d'action a été transmise à l'adresse administrateur : alanementii73@gmail.com."
+    }
+
+    fun unrestrictUser(handle: String) {
+        restrictedHandles = restrictedHandles - handle
+        triggerBeep(3)
+        securityNotificationDialogText = "Compte @$handle n'est plus restreint. Ses publications réapparaissent."
+    }
+
+    fun shareUserProfile(handle: String) {
+        triggerBeep(1)
+        securityNotificationDialogText = "Lien de profil généré : https://mirys.app/user/@$handle. Transmis à vos contacts."
+    }
+
+    fun synchronizeVibratoryAura(handle: String) {
+        triggerBeep(3)
+        securityNotificationDialogText = "Analyse d'alignement Aura en cours avec @$handle...\n\nRésultat : Alignement Cosmique Spontané de 94% ! Vos vibrations sont hautement compatibles. Vous devriez interagir davantage !"
+    }
+
+    fun sendDirectMessage(
+        partnerHandle: String,
+        text: String,
+        isVoiceNote: Boolean = false,
+        voiceNoteDuration: Int = 0,
+        photoUrl: String? = null,
+        isVideo: Boolean = false,
+        videoUrl: String? = null
+    ) {
+        if (text.isBlank() && !isVoiceNote && photoUrl == null && videoUrl == null) return
         val formatter = SimpleDateFormat("HH:mm", Locale.getDefault())
         val timeStr = formatter.format(Date())
         
         val newMsg = DirectMessage(
             id = (directMessagesMap[partnerHandle]?.size ?: 0) + 1,
             senderHandle = userHandle,
-            content = if (isVoiceNote) "🎤 Message vocal ($voiceNoteDuration s)" else text,
+            content = text,
             timestamp = timeStr,
             isVoiceNote = isVoiceNote,
-            voiceNoteDuration = voiceNoteDuration
+            voiceNoteDuration = voiceNoteDuration,
+            photoUrl = photoUrl,
+            isVideo = isVideo,
+            videoUrl = videoUrl
         )
         
         val existing = directMessagesMap[partnerHandle] ?: emptyList()
@@ -171,7 +443,11 @@ class AuraViewModel(application: Application) : AndroidViewModel(application) {
             kotlinx.coroutines.delay(1500)
             val replyText = when (partnerHandle) {
                 "sonia_coder" -> {
-                    if (text.lowercase().contains("salut") || text.lowercase().contains("hey") || text.lowercase().contains("bonjour")) {
+                    if (photoUrl != null) {
+                        "Wouah ! Magnifique ce partage visuel ! J'ai hâte de continuer la conception avec toi ! 🎨💖"
+                    } else if (videoUrl != null) {
+                        "Impressionnant ce clip vidéo ! C'est fluide et réaliste, bravo pour le partage !"
+                    } else if (text.lowercase().contains("salut") || text.lowercase().contains("hey") || text.lowercase().contains("bonjour")) {
                         "Hey ! Ravi de t'échanger en privé des messages ! Est-ce que tu as vu les nouveaux effets de la boutique ? Ils brillent tellement !"
                     } else if (text.lowercase().contains("appel") || text.lowercase().contains("vocal") || text.lowercase().contains("salon")) {
                         "Absolument ! Démarre le salon d'appel tout de suite dans nos moments ! 🎤"
@@ -188,7 +464,13 @@ class AuraViewModel(application: Application) : AndroidViewModel(application) {
                 "mirysofficiel" -> {
                     "Merci de m'écrire ! C'est Alane Mentii (Mirysofficiel), concepteur de Mirys."
                 }
-                else -> "Fascinant ! Merci de ton partage. Passe une très bonne journée ! 🌟"
+                else -> {
+                    if (photoUrl != null) {
+                        "Quel superbe visuel ! Ton partage correspond vraiment à de bonnes ondes !"
+                    } else {
+                        "Fascinant ! Merci de ton partage. Passe une très bonne journée ! 🌟"
+                    }
+                }
             }
             
             val replyMsg = DirectMessage(
@@ -201,6 +483,47 @@ class AuraViewModel(application: Application) : AndroidViewModel(application) {
             val updated = directMessagesMap[partnerHandle] ?: emptyList()
             directMessagesMap = directMessagesMap + (partnerHandle to (updated + replyMsg))
             triggerBeep(1)
+        }
+    }
+
+    var shouldOfferRoomPostInMoments by mutableStateOf(true)
+    var activeRoomPostId by mutableStateOf<Int?>(null)
+
+    fun startVoiceOrVideoRoom(type: String) {
+        val partner = if (type == "voiceroom") "Mon Salon Vocal 🎙️" else "Ma Salle Vidéo 🎥"
+        
+        // Reset host states
+        isRoomLocked = false
+        isEveryoneMuted = false
+        isScreenSharing = false
+        pinnedRoomMessage = null
+        roomGuests.clear()
+        roomGuests.addAll(listOf("lucas_cyber", "luna_zen", "alicia_light"))
+        
+        // Initialize pending moderator join permissions
+        roomJoinRequests.clear()
+        roomJoinRequests.addAll(listOf("jean_dupont 🇨🇲", "sarah_care 🇸🇳", "marc_tech 🇨🇮"))
+
+        if (shouldOfferRoomPostInMoments) {
+            val contentStr = if (type == "voiceroom") {
+                "🚨 J'ai ouvert un nouveau Salon de Chat Vocal gratuit live ! Rejoignez-moi pour discuter en direct ! 🎙️✨"
+            } else {
+                "🎥 Salon de Chat Vidéo ouvert ! Entrez dans l'arène vidéo en direct pour échanger en face à face ! 🌐👇"
+            }
+            activeRoomPostId = addNewPost(content = contentStr, isVoiceRoom = true)
+        } else {
+            activeRoomPostId = null
+        }
+        
+        triggerCallSession(partnerHandle = partner, type = type)
+
+        // Launch request permission simulation loop
+        viewModelScope.launch {
+            kotlinx.coroutines.delay(10000) // wait 10 seconds before starting loops
+            while (activeCallType == "voiceroom" || activeCallType == "videoroom") {
+                simulateMockJoinRequest()
+                kotlinx.coroutines.delay(15000) // every 15s
+            }
         }
     }
 
@@ -230,7 +553,7 @@ class AuraViewModel(application: Application) : AndroidViewModel(application) {
                 else -> "un Appel Audio Privé 📞"
             }
             val contentStr = "🔴 J'ai ouvert $label en direct avec @$partnerHandle ! C'est disponible dès à présent dans nos moments et salons ! Rejoignez-nous pour discuter ! 🔥🎙️"
-            addNewPost(content = contentStr)
+            activeRoomPostId = addNewPost(content = contentStr, isVoiceRoom = true)
         }
     }
 
@@ -239,15 +562,34 @@ class AuraViewModel(application: Application) : AndroidViewModel(application) {
         activeCallType = null
         callStatus = "Terminé"
         triggerBeep(2)
+
+        // If we opened a room post in moments, mark it as terminated / finished!
+        activeRoomPostId?.let { postId ->
+            postsList = postsList.map { post ->
+                if (post.id == postId) {
+                    val endedContent = "🔴 [Fermé - Session terminée] " + post.content.replace("🚨 ", "").replace("🎥 ", "").replace("🔴 ", "")
+                    post.copy(
+                        content = endedContent,
+                        isVoiceRoom = false
+                    )
+                } else {
+                    post
+                }
+            }
+            activeRoomPostId = null
+        }
     }
 
     // --- NAVIGATION TABS SYSTEM ---
-    var currentTab by mutableStateOf("dashboard") // "dashboard", "feed", "games", "talk", "agenda", "shop"
+    var currentTab by mutableStateOf("dashboard") // "dashboard", "feed", "talk", "agenda", "profile"
         private set
 
     fun selectTab(tab: String) {
         currentTab = tab
     }
+
+    var activeChatPartnerHandle by mutableStateOf<String?>(null)
+    var talkActiveSubTab by mutableStateOf("dms") // "dms" or "rooms"
 
     // --- AI COMPANION STATES (Mirys IA) ---
     var isAnalyzingMood by mutableStateOf(false)
@@ -269,11 +611,132 @@ class AuraViewModel(application: Application) : AndroidViewModel(application) {
     )
 
     // --- GAMIFICATION & PROFILE SYSTEM (MIRYS v2.0) ---
-    var coins by mutableIntStateOf(200)
+    var coins by mutableIntStateOf(350) // Set default coins to 350 so that people have a playground starting balance
     var xp by mutableIntStateOf(35)
     var eloChess by mutableIntStateOf(1200)
     var equippedBadge by mutableStateOf<String?>(null)
     var ownedBadges by mutableStateOf<Set<String>>(setOf("Default"))
+    var trialBadges by mutableStateOf<Map<String, Long>>(emptyMap()) // badgeName to expiry timestamp
+
+    // --- 10 SPECTACULAR PREMIUM HUB STATES ---
+    var activatedAuraSkin by mutableStateOf("none") // "none", "aurora", "cyber", "royal"
+    var activeMoodHalo by mutableStateOf<String?>(null) // e.g., "Hyper-Créatif 💡"
+    var premiumStoryStep by mutableStateOf(1)
+    var premiumStoryPoints by mutableStateOf(0)
+    var premiumDreamAnalysisResult by mutableStateOf<String?>(null)
+    var premiumDreamOracleCard by mutableStateOf<String?>(null)
+    var premiumDreamMoodColorHex by mutableStateOf("#9C27B0")
+    var isDreamOracleAnalyzing by mutableStateOf(false)
+    var premiumRadarScanning by mutableStateOf(false)
+    var premiumSoundscapeTheme by mutableStateOf("none") // "none", "serenity", "nebula", "fire"
+    var premiumSoundscapeVolume by mutableFloatStateOf(0.5f)
+    var premiumTranslatorLanguage by mutableStateOf("Wolof  🇸🇳")
+    var isAuraHaloPulsing by mutableStateOf(true)
+    var selectedEliteArenaLeague by mutableStateOf("Ligue de Platine")
+    var premiumTournamentTrophies by mutableStateOf(12)
+    var premiumTournamentsWon by mutableStateOf(4)
+
+    // Additive free/paid limits & monetization variables
+    var showCallLimitDialog by mutableStateOf(false)
+    var freeGoalGenerationsToday by mutableStateOf(0)
+    var isBoostActive by mutableStateOf(false)
+    var unlockedGames by mutableStateOf<Set<String>>(setOf("quiz", "memory", "lightsout"))
+
+    // Daily tracker (Premium paid option) states & selection theme
+    var trackerSelectedTheme by mutableStateOf("Mirys Cosmique 🌌") // "Mirys Cosmique 🌌", "Forêt Zen 🌿", "Océan Serein 🌊", "Volcan Créatif 🌋"
+    var trackerWater by mutableIntStateOf(3) // out of 8 cups
+    var trackerMeditate by mutableStateOf(false)
+    var trackerSteps by mutableIntStateOf(4200) // target 10000
+    var trackerSleepHours by mutableIntStateOf(7) // out of 8
+    var trackerStudyTime by mutableIntStateOf(20) // minutes out of 60
+
+    // Interconnected logical Hook Feature: Soul Resonance Core reactor
+    var resonanceFrequencyName by mutableStateOf("432 Hz - Calme & Éveil")
+    var resonanceCoreCharge by mutableIntStateOf(0) // active charge %
+    var resonanceDailyCompleted by mutableStateOf(false)
+    var resonanceEnergySeeds by mutableIntStateOf(3) // Seed currency used for forging
+    var activeResonanceSparkles by mutableIntStateOf(100) // Hook engagement sparkles!
+    var forgedRelicsCount by mutableIntStateOf(1) // Number of forged spiritual items
+    var activeConstellationStars by mutableStateOf<Set<Int>>(setOf(1, 2)) // indices of active forged stars
+
+    fun chargeResonanceUnitStep(power: Int): Boolean {
+        if (resonanceDailyCompleted) return false
+        val newCharge = resonanceCoreCharge + power
+        if (newCharge >= 100) {
+            resonanceCoreCharge = 100
+            resonanceDailyCompleted = true
+            activeResonanceSparkles += 150
+            coins += 40
+            xp += 20
+            resonanceEnergySeeds += 1
+            triggerBeep(1)
+            return true
+        } else {
+            resonanceCoreCharge = newCharge
+            if (resonanceCoreCharge % 10 == 0) {
+                triggerBeep(3)
+            }
+        }
+        return false
+    }
+
+    fun chargeResonanceCancel() {
+        if (!resonanceDailyCompleted) {
+            resonanceCoreCharge = 0
+        }
+    }
+
+    fun forgeAstralRelic(): Boolean {
+        if (resonanceEnergySeeds >= 3) {
+            resonanceEnergySeeds -= 3
+            forgedRelicsCount += 1
+            coins += 100
+            xp += 50
+            val newStars = activeConstellationStars.toMutableSet()
+            val nextStar = (1..6).firstOrNull { !newStars.contains(it) } ?: 1
+            newStars.add(nextStar)
+            activeConstellationStars = newStars
+            triggerBeep(1)
+            return true
+        }
+        return false
+    }
+
+    fun purchaseXpGoldBooster(): Boolean {
+        if (coins >= 150) {
+            coins -= 150
+            isBoostActive = true
+            triggerBeep(3)
+            return true
+        }
+        return false
+    }
+
+    fun unlockGameWithCoins(gameId: String): Boolean {
+        if (coins >= 150) {
+            coins -= 150
+            unlockedGames = unlockedGames + gameId
+            triggerBeep(3)
+            return true
+        }
+        return false
+    }
+
+    fun isGameUnlocked(gameId: String): Boolean {
+        // If premium or pro, or 2-day free trial is active, all games are instantly unlocked!
+        if (subscriptionTier != "Gratuit" || isFreeTrialActive) return true
+        return unlockedGames.contains(gameId)
+    }
+
+    fun activateBadgeTrial(badgeName: String) {
+        val durationMs = 5 * 24 * 60 * 60 * 1000L // 5 days free
+        val expiryTime = System.currentTimeMillis() + durationMs
+        trialBadges = trialBadges + (badgeName to expiryTime)
+        ownedBadges = ownedBadges + badgeName
+        equippedBadge = badgeName
+        triggerBeep(1)
+    }
+
     var isDailyClaimed by mutableStateOf(false)
     var dailyStreak by mutableIntStateOf(1)
 
@@ -301,6 +764,133 @@ class AuraViewModel(application: Application) : AndroidViewModel(application) {
     // --- SUBSCRIPTION TIER ---
     var subscriptionTier by mutableStateOf("Gratuit") // "Gratuit", "Pro ✨", "Premium Ultimate 👑"
     var subscriptionExpiryDate by mutableStateOf<String?>(null)
+
+    // --- 2-DAY FREE TRIAL SYSTEM (NEW) ---
+    var isFreeTrialActive by mutableStateOf(false)
+    var trialSecondsRemaining by mutableStateOf(172800L) // 2 days in seconds
+    var trialTimeLabel by mutableStateOf("48:00:00")
+
+    fun start2DayFreeTrial() {
+        isFreeTrialActive = true
+        trialSecondsRemaining = 172800L
+        trialTimeLabel = "48:00:00"
+        subscriptionTier = "Premium Trial 👑"
+        triggerBeep(3)
+    }
+
+    fun endFreeTrialImmediately() {
+        isFreeTrialActive = false
+        trialSecondsRemaining = 0L
+        trialTimeLabel = "Expiré"
+        subscriptionTier = "Gratuit"
+        triggerBeep(2)
+    }
+
+    val subRegionsList = listOf(
+        SubRegion(
+            id = "EUR",
+            name = "Europe (Zone Euro)",
+            flag = "🇪🇺",
+            currencySymbol = "€",
+            currencyCode = "EUR",
+            proPriceFormatted = "4,99 €",
+            premiumPriceFormatted = "9,99 €",
+            proNumericPrice = 4.99,
+            premiumNumericPrice = 9.99,
+            proRawPriceString = "4,99 €/m",
+            premiumRawPriceString = "9,99 €/m",
+            streamPriceFormatted = "0,49€ par minute"
+        ),
+        SubRegion(
+            id = "XOF",
+            name = "Afrique de l'Ouest (UEMOA)",
+            flag = "🇨🇮 🇸🇳",
+            currencySymbol = "XOF",
+            currencyCode = "XOF",
+            proPriceFormatted = "2 900 XOF",
+            premiumPriceFormatted = "5 900 XOF",
+            proNumericPrice = 2900.0,
+            premiumNumericPrice = 5900.0,
+            proRawPriceString = "2 900 XOF/m",
+            premiumRawPriceString = "5 900 XOF/m",
+            streamPriceFormatted = "300 XOF par minute"
+        ),
+        SubRegion(
+            id = "XAF",
+            name = "Afrique Centrale (CEMAC)",
+            flag = "🇨🇲 🇬🇦",
+            currencySymbol = "XAF",
+            currencyCode = "XAF",
+            proPriceFormatted = "2 900 XAF",
+            premiumPriceFormatted = "5 900 XAF",
+            proNumericPrice = 2900.0,
+            premiumNumericPrice = 5900.0,
+            proRawPriceString = "2 900 XAF/m",
+            premiumRawPriceString = "5 900 XAF/m",
+            streamPriceFormatted = "300 XAF par minute"
+        ),
+        SubRegion(
+            id = "MAD",
+            name = "Maroc (Maghreb)",
+            flag = "🇲🇦",
+            currencySymbol = "DH",
+            currencyCode = "MAD",
+            proPriceFormatted = "49 DH",
+            premiumPriceFormatted = "99 DH",
+            proNumericPrice = 49.0,
+            premiumNumericPrice = 99.0,
+            proRawPriceString = "49 DH/m",
+            premiumRawPriceString = "99 DH/m",
+            streamPriceFormatted = "4.9 DH par minute"
+        ),
+        SubRegion(
+            id = "TND",
+            name = "Tunisie (Maghreb)",
+            flag = "🇹🇳",
+            currencySymbol = "DT",
+            currencyCode = "TND",
+            proPriceFormatted = "15 DT",
+            premiumPriceFormatted = "30 DT",
+            proNumericPrice = 15.0,
+            premiumNumericPrice = 30.0,
+            proRawPriceString = "15 DT/m",
+            premiumRawPriceString = "30 DT/m",
+            streamPriceFormatted = "1.5 DT par minute"
+        ),
+        SubRegion(
+            id = "DZD",
+            name = "Algérie (Maghreb)",
+            flag = "🇩🇿",
+            currencySymbol = "DA",
+            currencyCode = "DZD",
+            proPriceFormatted = "690 DA",
+            premiumPriceFormatted = "1 390 DA",
+            proNumericPrice = 690.0,
+            premiumNumericPrice = 1390.0,
+            proRawPriceString = "690 DA/m",
+            premiumRawPriceString = "1 390 DA/m",
+            streamPriceFormatted = "69 DA par minute"
+        ),
+        SubRegion(
+            id = "USD",
+            name = "International / USA",
+            flag = "🌐 🇺🇸",
+            currencySymbol = "$",
+            currencyCode = "USD",
+            proPriceFormatted = "4.99 $",
+            premiumPriceFormatted = "9.99 $",
+            proNumericPrice = 4.99,
+            premiumNumericPrice = 9.99,
+            proRawPriceString = "4.99 $/m",
+            premiumRawPriceString = "9.99 $/m",
+            streamPriceFormatted = "0.49$ par minute"
+        )
+    )
+
+    var selectedSubRegionId by mutableStateOf("EUR")
+
+    val currentSubRegion: SubRegion
+        get() = subRegionsList.firstOrNull { it.id == selectedSubRegionId } ?: subRegionsList.first()
 
     val currentLevel: Int
         get() = 1 + kotlin.math.floor(kotlin.math.sqrt(xp.toDouble() / 100.0)).toInt()
@@ -352,6 +942,70 @@ class AuraViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    fun speakText(text: String) {
+        try {
+            triggerBeep(3)
+            tts?.speak(text, android.speech.tts.TextToSpeech.QUEUE_FLUSH, null, null)
+        } catch (e: Exception) {
+            // Ignore if speak fails
+        }
+    }
+
+    override fun onCleared() {
+        super.onCleared()
+        try {
+            tts?.stop()
+            tts?.shutdown()
+        } catch (e: Exception) {
+            // Ignore cleanup errors
+        }
+    }
+
+    fun triggerVibration(type: Int) {
+        if (!settingsHapticEnabled) return
+        try {
+            val appContext = getApplication<Application>()
+            val vibContext = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                appContext.createAttributionContext("vibration")
+            } else {
+                appContext
+            }
+            val vibrator = vibContext.getSystemService(Context.VIBRATOR_SERVICE) as? Vibrator
+            if (vibrator != null && vibrator.hasVibrator()) {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    when (type) {
+                        1 -> { // Success/positive tick
+                            vibrator.vibrate(VibrationEffect.createOneShot(55, VibrationEffect.DEFAULT_AMPLITUDE))
+                        }
+                        2 -> { // Error/failure / wrong move
+                            vibrator.vibrate(VibrationEffect.createWaveform(longArrayOf(0, 120, 80, 120), intArrayOf(0, 180, 0, 180), -1))
+                        }
+                        3 -> { // Normal tactile grid selection / move tick
+                            vibrator.vibrate(VibrationEffect.createOneShot(35, 120))
+                        }
+                        4 -> { // High-tier level completion / victory
+                            vibrator.vibrate(VibrationEffect.createWaveform(longArrayOf(0, 100, 120, 100, 120, 200), intArrayOf(0, 255, 0, 255, 0, 255), -1))
+                        }
+                        5 -> { // Downward game-over vibration
+                            vibrator.vibrate(VibrationEffect.createOneShot(250, 75))
+                        }
+                    }
+                } else {
+                    @Suppress("DEPRECATION")
+                    when (type) {
+                        1 -> vibrator.vibrate(55)
+                        2 -> vibrator.vibrate(longArrayOf(0, 120, 80, 120), -1)
+                        3 -> vibrator.vibrate(35)
+                        4 -> vibrator.vibrate(longArrayOf(0, 100, 120, 100, 120, 200), -1)
+                        5 -> vibrator.vibrate(250)
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            // Ignore vibration errors
+        }
+    }
+
     // --- SOCIAL FEED STATE & ACTIONS ---
     var postsList by mutableStateOf<List<SocialPost>>(
         listOf(
@@ -362,7 +1016,7 @@ class AuraViewModel(application: Application) : AndroidViewModel(application) {
                 authorBadge = "Champion 👑",
                 isOfficial = true,
                 isVoiceRoom = false,
-                content = "Bienvenue sur Mirys v2.0 ! 🎉 Préparez-vous à relever des défis incroyables. Testez votre culture dans l'onglet des Quiz Trivia, affrontez notre IA aux Échecs tactiques et collectez des pièces pour débloquer de magnifiques badges animés dans la Boutique !",
+                content = "Bienvenue sur Mirys v2.0 ! 🎉 Préparez-vous à relever des défis incroyables. Testez votre culture dans l'onglet des Quiz Majoie, affrontez notre IA aux Échecs tactiques et collectez des pièces pour débloquer de magnifiques badges animés dans la Boutique !",
                 timestamp = "A l'instant",
                 likesCount = 124,
                 isLikedByMe = false,
@@ -370,47 +1024,7 @@ class AuraViewModel(application: Application) : AndroidViewModel(application) {
                 viralityTier = "mega_viral",
                 viralityFeedback = "Une annonce majeure et engageante avec une structure impeccable de communication.",
                 photos = listOf("https://images.unsplash.com/photo-1545235617-9465d2a55698?q=80&w=600"),
-                translation = "Welcome to Mirys v2.0! 🎉 Get ready to take on amazing challenges. Test your knowledge in the Trivia Quiz section, play against our AI in tactical Chess, and collect coins to unlock gorgeous badges in the Shop!"
-            ),
-            SocialPost(
-                id = 2,
-                authorName = "Sonia Tech",
-                authorHandle = "sonia_coder",
-                authorBadge = "Flame 🔥",
-                isOfficial = false,
-                isVoiceRoom = false,
-                content = "J'adore l'analyse de bien-être de Mirys. Après avoir rédigé mes notes de journal, le débrief par l'IA me donne exactement les bons conseils pour ma journée ! Qui d'autre a testé l'IA aujourd'hui ? ⚡ #Aura #MirysIA",
-                timestamp = "Il y a 2 heures",
-                likesCount = 38,
-                isLikedByMe = false,
-                viralityScore = 54,
-                viralityTier = "trending",
-                viralityFeedback = "Post cibé avec hashtags actifs et engagement authentique de communauté.",
-                photos = listOf(
-                    "https://images.unsplash.com/photo-1506126613408-eca07ce68773?q=80&w=600",
-                    "https://images.unsplash.com/photo-1518241353330-0f7941c2d9b5?q=80&w=600"
-                ),
-                translation = "I absolutely love Mirys' wellness analysis. After writing my journal entries, the AI debrief gives me the exact advice of the day! Who else tried the AI today? ⚡ #Aura #MirysIA"
-            ),
-            SocialPost(
-                id = 3,
-                authorName = "Lycée National Chess Club",
-                authorHandle = "chess_club_yaounde",
-                authorBadge = "Galaxy 🌌",
-                isOfficial = false,
-                isVoiceRoom = true,
-                content = "Room Vocale active chez Mirys ! Thème : Les ouvertures d'échecs légendaires. Rejoignez le micro ou posez vos questions en direct sur l'app ! 🎙️♟️ #EchecsTactiques",
-                timestamp = "Il y a 4 heures",
-                likesCount = 17,
-                isLikedByMe = false,
-                viralityScore = 42,
-                viralityTier = "rising",
-                viralityFeedback = "Idée thématique intéressante pour animer des groupes d'apprentissage.",
-                videoUrl = "https://assets.mixkit.co/videos/preview/mixkit-starry-night-sky-over-mountains-34440-large.mp4",
-                videoDuration = "0:24",
-                translation = "Active Voice Room on Mirys! Theme: Legendary chess openings. Join the microphone or ask your questions live on the app! 🎙️♟️ #TacticalChess",
-                correctedContent = "Salon vocal actif chez Mirys ! Thème : Les ouvertures d'échecs de légende. Rejoignez-nous au micro ou posez vos questions en direct sur l’application ! 🎙️♟️ #EchecsTactiques",
-                correctionExplanation = "Remplacement de l'anglicisme 'Room Vocale' par 'Salon vocal', accord naturel 'ouvertures d'échecs de légende' au lieu de 'ouvertures légendaires', et 'l'application' au lieu de 'l'app'."
+                translation = "Welcome to Mirys v2.0! 🎉 Get ready to take on amazing challenges. Test your knowledge in the Quiz Majoie section, play against our AI in tactical Chess, and collect coins to unlock gorgeous badges in the Shop!"
             )
         )
     )
@@ -418,17 +1032,18 @@ class AuraViewModel(application: Application) : AndroidViewModel(application) {
     var isAnalyzingPostVirality by mutableStateOf(false)
         private set
 
-    fun addNewPost(content: String, photos: List<String> = emptyList(), videoUrl: String? = null, videoDuration: String? = null) {
-        if (content.isBlank() && photos.isEmpty() && videoUrl == null) return
+    fun addNewPost(content: String, photos: List<String> = emptyList(), videoUrl: String? = null, videoDuration: String? = null, isVoiceRoom: Boolean = false): Int {
+        if (content.isBlank() && photos.isEmpty() && videoUrl == null) return -1
         val formatter = SimpleDateFormat("HH:mm", Locale.getDefault())
         val timeString = "Aujourd'hui à " + formatter.format(Date())
+        val newId = postsList.size + 1
         val newPost = SocialPost(
-            id = postsList.size + 1,
+            id = newId,
             authorName = username,
             authorHandle = userHandle,
             authorBadge = equippedBadge,
             isOfficial = false,
-            isVoiceRoom = false,
+            isVoiceRoom = isVoiceRoom,
             content = content,
             timestamp = timeString,
             likesCount = 0,
@@ -443,6 +1058,7 @@ class AuraViewModel(application: Application) : AndroidViewModel(application) {
         postsList = listOf(newPost) + postsList
         xp += 5 // Earn XP for posting!
         triggerBeep(3)
+        return newId
     }
 
     fun toggleLikePost(postId: Int) {
@@ -496,6 +1112,8 @@ class AuraViewModel(application: Application) : AndroidViewModel(application) {
 
     // --- TRIVIA QUIZ ENGINE AND STATES ---
     var quizActiveCat by mutableStateOf<String?>(null)
+    var quizActiveLevel by mutableIntStateOf(1)
+    var activeQuizQuestions by mutableStateOf<List<QuizQuestion>>(emptyList())
     var quizCurrentIndex by mutableIntStateOf(0)
     var quizCurrentScore by mutableIntStateOf(0)
     var quizCompleted by mutableStateOf(false)
@@ -504,140 +1122,17 @@ class AuraViewModel(application: Application) : AndroidViewModel(application) {
     var quizEarnedCoins by mutableIntStateOf(0)
     var quizEarnedXp by mutableIntStateOf(0)
 
-    val quizQuestions = mapOf(
-        "Sciences" to listOf(
-            QuizQuestion(
-                "Quelle particule élémentaire tourne autour du noyau de l'atome ?",
-                listOf("Le proton", "L'électron", "Le neutron", "Le quark"),
-                1,
-                "L'électron est une particule chargée négativement qui orbite autour du noyau atomique."
-            ),
-            QuizQuestion(
-                "Combien de temps faut-il environ à la lumière du Soleil pour atteindre la Terre ?",
-                listOf("8 secondes", "8 minutes", "8 heures", "8 jours"),
-                1,
-                "La lumière voyageant à 300 000 km/s met environ 8 minutes et 20 secondes pour parcourir la distance Terre-Soleil."
-            ),
-            QuizQuestion(
-                "Quelle planète du système solaire possède le plus de lunes ?",
-                listOf("Mars", "Jupiter", "Saturne", "Neptune"),
-                2,
-                "Saturne compte plus de 140 lunes confirmées, dépassant Jupiter."
-            ),
-            QuizQuestion(
-                "Quel organe produit l'insuline dans le corps humain ?",
-                listOf("Le foie", "Le pancréas", "Les reins", "La rate"),
-                1,
-                "Le pancréas sécrète l'insuline régulant le taux de glucose sanguin."
-            ),
-            QuizQuestion(
-                "Quel gaz est le principal constituant de l'atmosphère terrestre ?",
-                listOf("L'oxygène", "Le dioxyde de carbone", "L'azote (Diazote)", "L'argon"),
-                2,
-                "L'azote constitue environ 78% de l'atmosphère de la Terre, devant l'oxygène (21%)."
-            )
-        ),
-        "Histoire" to listOf(
-            QuizQuestion(
-                "En quelle année la Révolution française a-t-elle commencé ?",
-                listOf("1776", "1789", "1804", "1815"),
-                1,
-                "La Révolution française a commencé en 1789 avec l'ouverture des États généraux."
-            ),
-            QuizQuestion(
-                "Qui était le premier président des États-Unis ?",
-                listOf("Thomas Jefferson", "Abraham Lincoln", "George Washington", "Benjamin Franklin"),
-                2,
-                "George Washington a été élu premier président américain en 1789."
-            ),
-            QuizQuestion(
-                "Quelle civilisation antique a construit le temple du Parthénon ?",
-                listOf("Les Égyptiens", "Les Grecs", "Les Romains", "Les Mayas"),
-                1,
-                "Les Athéniens ont érigé le Parthénon sur l'Acropole d'Athènes au Ve siècle av. J.-C."
-            ),
-            QuizQuestion(
-                "Quel navigateur a mené le premier voyage de circumnavigation de la Terre ?",
-                listOf("Christophe Colomb", "Vasco de Gama", "Fernand de Magellan", "Jacques Cartier"),
-                2,
-                "Magellan a initié l'expédition en 1519, achevée par Elcano en 1522."
-            ),
-            QuizQuestion(
-                "Quelle reine régnait sur le Royaume-Uni pendant la majeure partie du XIXe siècle ?",
-                listOf("Reine Élisabeth Ire", "Reine Victoria", "Reine Élisabeth II", "Reine Anne"),
-                1,
-                "Le règne de la reine Victoria s'est étendu de 1837 à 1901 (époque victorienne)."
-            )
-        ),
-        "Echecs" to listOf(
-            QuizQuestion(
-                "Quelle pièce a pour particularité de pouvoir sauter par-dessus d'autres pièces ?",
-                listOf("La dame", "Le fou", "La tour", "Le cavalier"),
-                3,
-                "Le cavalier est la seule pièce capable de passer au-dessus des autres lors de ses mouvements en L."
-            ),
-            QuizQuestion(
-                "Combien de cases y a-t-il sur un échiquier standard ?",
-                listOf("32", "48", "64", "81"),
-                2,
-                "Un échiquier se compose de 8 colonnes et 8 rangées, soit 64 cases alternatives claires et sombres."
-            ),
-            QuizQuestion(
-                "Comment appelle-t-on le coup spécial impliquant simultanément le Roi et une Tour ?",
-                listOf("Le roque", "La promotion", "La prise en passant", "La fourchette"),
-                0,
-                "Le roque permet d'abriter le Roi et d'activer la Tour d'un seul coup sous conditions."
-            ),
-            QuizQuestion(
-                "Quelle pièce ne peut jamais se déplacer sur une case de couleur différente ?",
-                listOf("Le roi", "Le pion", "Le fou", "La tour"),
-                2,
-                "Les fous restent à vie fidèles à leur couleur de case d'origine."
-            ),
-            QuizQuestion(
-                "Quelle pièce possède la plus grande liberté de mouvement et de valeur tactique ?",
-                listOf("Le roi", "La tour", "Le cavalier", "La dame"),
-                3,
-                "La dame combine les mouvements latéraux de la tour et diagonaux du fou."
-            )
-        ),
-        "Culture" to listOf(
-            QuizQuestion(
-                "Qui a peint la Joconde ?",
-                listOf("Michel-Ange", "Léonard de Vinci", "Pablo Picasso", "Vincent van Gogh"),
-                1,
-                "L'œuvre iconique Mona Lisa a été réalisée par Léonard de Vinci au début du XVIe siècle."
-            ),
-            QuizQuestion(
-                "Dans quel pays se trouve la célèbre attraction de la Tour de Pise ?",
-                listOf("En France", "En Espagne", "En Italie", "En Grèce"),
-                2,
-                "La tour penchée est le campanile de la cathédrale de Pise, en Toscane, Italie."
-            ),
-            QuizQuestion(
-                "Quel écrivain français a rédigé 'Les Misérables' ?",
-                listOf("Émile Zola", "Gustave Flaubert", "Victor Hugo", "Albert Camus"),
-                2,
-                "Victor Hugo est le romancier phare ayant brossé le portrait social de Jean Valjean en 1862."
-            ),
-            QuizQuestion(
-                "De quel groupe de musique légendaire faisaient partie John Lennon et Paul McCartney ?",
-                listOf("The Rolling Stones", "The Beatles", "Pink Floyd", "Led Zeppelin"),
-                1,
-                "The Beatles, formés à Liverpool, sont entrés dans la légende du rock mondial."
-            ),
-            QuizQuestion(
-                "Quel est le plus grand océan de notre planète ?",
-                listOf("L'océan Atlantique", "L'océan Indien", "L'océan Pacifique", "L'océan Arctique"),
-                2,
-                "L'océan Pacifique couvre à lui seul plus de 30% de la surface mondiale."
-            )
-        )
-    )
-
-    fun startQuizSession(category: String) {
-        quizQuestions[category] ?: return
+    fun startQuizSession(category: String, level: Int) {
+        val rawQuestions = com.example.data.QuizDatabase.getQuestions(category, level)
+        if (rawQuestions.isEmpty()) return
+        
+        // Auto-translate questions based on app language
+        activeQuizQuestions = rawQuestions.map { q ->
+            com.example.data.QuizDatabase.getLocalizedQuestion(q, appLanguage)
+        }
+        
         quizActiveCat = category
+        quizActiveLevel = level
         quizCurrentIndex = 0
         quizCurrentScore = 0
         quizCompleted = false
@@ -651,24 +1146,29 @@ class AuraViewModel(application: Application) : AndroidViewModel(application) {
     fun submitQuizAnswer(optIdx: Int) {
         if (selectedOptionIdx != null) return // Already answered
         selectedOptionIdx = optIdx
-        val questions = quizQuestions[quizActiveCat] ?: return
+        val questions = activeQuizQuestions
+        if (questions.isEmpty()) return
         val currentQ = questions[quizCurrentIndex]
         
         if (optIdx == currentQ.correctIdx) {
             quizCurrentScore += 1
             quizStreakMultiplier += 1
             triggerBeep(3) // High Correct Beep
+            triggerVibration(1) // Light tick success vibration
         } else {
             quizStreakMultiplier = 1
             triggerBeep(2) // Low Error Buzz
+            triggerVibration(2) // Rough error buzz vibration
         }
     }
 
     fun proceedToNextQuizOrFinish() {
-        val questions = quizQuestions[quizActiveCat] ?: return
+        val questions = activeQuizQuestions
+        if (questions.isEmpty()) return
         if (quizCurrentIndex < questions.size - 1) {
             quizCurrentIndex += 1
             selectedOptionIdx = null
+            triggerVibration(3) // Next question tick
         } else {
             // End session! Calculate payout
             quizCompleted = true
@@ -685,6 +1185,12 @@ class AuraViewModel(application: Application) : AndroidViewModel(application) {
             quizEarnedCoins = totalCoins
             quizEarnedXp = totalXp
             triggerBeep(1) // Win Arpeggio acknowledgment
+            
+            if (quizCurrentScore > 0) {
+                triggerVibration(4) // Game/Quiz Victory Double Pulse
+            } else {
+                triggerVibration(5) // Defeat/Null score downward rumble
+            }
         }
     }
 
@@ -698,6 +1204,9 @@ class AuraViewModel(application: Application) : AndroidViewModel(application) {
 
     // --- CHESS VS IA ENGINE STATE & ACTIONS ---
     var isChessActive by mutableStateOf(false)
+    var isChessAgainstRealPlayer by mutableStateOf(false)
+    var chessOpponentHandle by mutableStateOf("")
+    var chessOpponentRating by mutableIntStateOf(1200)
     var selectedChessCell by mutableStateOf<Pair<Int, Int>?>(null) // row, col
     var chessBoardState by mutableStateOf<Array<Array<ChessPiece?>>>(emptyBoard())
     var chessCapturedByPlayer = mutableStateListOf<ChessPiece>()
@@ -735,7 +1244,49 @@ class AuraViewModel(application: Application) : AndroidViewModel(application) {
         return b
     }
 
+    fun startChessMultiplayerGame(): Boolean {
+        if (subscriptionTier == "Gratuit") {
+            if (coins >= 30) {
+                coins -= 30
+                triggerBeep(3)
+            } else {
+                Toast.makeText(getApplication(), "Le mode Multijoueur contre de vraies personnes requiert 30 pièces d'or ou un forfait PRO/Premium !", Toast.LENGTH_LONG).show()
+                return false
+            }
+        }
+        
+        isChessAgainstRealPlayer = true
+        val randomPlayers = listOf(
+            Pair("Alane_Coder 🇨🇲", 1450),
+            Pair("Sonia_Design 🇸🇳", 1320),
+            Pair("Moussa_King 🇨🇮", 1190),
+            Pair("Zia_Peace 🇬🇦", 1250)
+        )
+        val chosen = randomPlayers.random()
+        chessOpponentHandle = chosen.first
+        chessOpponentRating = chosen.second
+        
+        chessAiDifficulty = "Multijoueur en Direct"
+        chessBoardState = emptyBoard()
+        chessCapturedByPlayer.clear()
+        chessCapturedByAi.clear()
+        moveHistoryList.clear()
+        selectedChessCell = null
+        chessPlayerTurn = true
+        whiteChessTime = 600
+        blackChessTime = 600
+        chessResultMessage = null
+        isChessActive = true
+        
+        startChessTimers()
+        
+        val modeText = if (subscriptionTier == "Gratuit") "Déduction de -30 🪙 !" else "Gratuit & Illimité (Abonnement PRO/Premium) !"
+        Toast.makeText(getApplication(), "Match trouvé ! Adversaire : @$chessOpponentHandle. Mode : $modeText", Toast.LENGTH_LONG).show()
+        return true
+    }
+
     fun startChessGame(difficulty: String) {
+        isChessAgainstRealPlayer = false
         chessAiDifficulty = difficulty
         chessBoardState = emptyBoard()
         chessCapturedByPlayer.clear()
@@ -777,23 +1328,33 @@ class AuraViewModel(application: Application) : AndroidViewModel(application) {
     fun endChessGame(playerWins: Boolean, reason: String) {
         isChessActive = false
         if (playerWins) {
-            val eloGain = 15
-            val coinGain = 40
-            val xpGain = 50
+            val eloGain = if (isChessAgainstRealPlayer) 30 else 15
+            val coinGain = if (isChessAgainstRealPlayer) 80 else 40
+            val xpGain = if (isChessAgainstRealPlayer) 100 else 50
             eloChess += eloGain
             coins += coinGain
             xp += xpGain
-            chessResultMessage = "Victoire 🎉 (+ $eloGain ELO, + $coinGain 🪙, + $xpGain XP)\n$reason"
+            chessResultMessage = if (isChessAgainstRealPlayer) {
+                "Victoire Classée contre @$chessOpponentHandle 🎉 (+ $eloGain ELO, + $coinGain 🪙, + $xpGain XP)\n$reason"
+            } else {
+                "Victoire 🎉 (+ $eloGain ELO, + $coinGain 🪙, + $xpGain XP)\n$reason"
+            }
             triggerBeep(1)
+            triggerVibration(4) // High double tap victory
         } else {
-            val eloLoss = 10
-            val coinGain = 5
-            val xpGain = 10
+            val eloLoss = if (isChessAgainstRealPlayer) 20 else 10
+            val coinGain = 10
+            val xpGain = 20
             eloChess = kotlin.math.max(100, eloChess - eloLoss)
             coins += coinGain
             xp += xpGain
-            chessResultMessage = "Défaite 💀 (- $eloLoss ELO, + $coinGain 🪙, + $xpGain XP)\n$reason"
+            chessResultMessage = if (isChessAgainstRealPlayer) {
+                "Défaite Classée contre @$chessOpponentHandle 💀 (- $eloLoss ELO, + $coinGain 🪙, + $xpGain XP)\n$reason"
+            } else {
+                "Défaite 💀 (- $eloLoss ELO, + $coinGain 🪙, + $xpGain XP)\n$reason"
+            }
             triggerBeep(2)
+            triggerVibration(5) // Downward defeat rumble
         }
     }
 
@@ -804,6 +1365,7 @@ class AuraViewModel(application: Application) : AndroidViewModel(application) {
             val piece = board[r][c]
             if (piece != null && piece.isWhite && chessPlayerTurn) {
                 selectedChessCell = Pair(r, c)
+                triggerVibration(3) // Selection tick
             }
         } else {
             val (sr, sc) = selected
@@ -813,6 +1375,7 @@ class AuraViewModel(application: Application) : AndroidViewModel(application) {
             if (targetPiece != null && targetPiece.isWhite) {
                 // Change selection
                 selectedChessCell = Pair(r, c)
+                triggerVibration(3) // Double click selection change tick
                 return
             }
             
@@ -825,11 +1388,14 @@ class AuraViewModel(application: Application) : AndroidViewModel(application) {
                 
                 if (targetPiece != null) {
                     chessCapturedByPlayer.add(targetPiece)
+                    triggerVibration(1) // Strong crunch successful capture vibration
                     if (targetPiece.type == "R") {
                         chessBoardState = updated
                         endChessGame(true, "Vous avez capturé le Roi adverse !")
                         return
                     }
+                } else {
+                    triggerVibration(3) // Normal move click vibration
                 }
                 
                 // Add to history
@@ -846,6 +1412,8 @@ class AuraViewModel(application: Application) : AndroidViewModel(application) {
                 triggerSelfChessAi()
             } else {
                 selectedChessCell = null // Reset selection on invalid click
+                triggerVibration(2) // Error invalid target move vibration
+                Toast.makeText(getApplication(), "Déplacement incorrect pour cette pièce ! ♟️ Recommencez.", Toast.LENGTH_SHORT).show()
             }
         }
     }
@@ -959,11 +1527,14 @@ class AuraViewModel(application: Application) : AndroidViewModel(application) {
             
             if (target != null) {
                 chessCapturedByAi.add(target)
+                triggerVibration(2) // Alert rumble to notify player of piece loss
                 if (target.type == "R") {
                     chessBoardState = updated
                     endChessGame(false, "L'IA a capturé votre Roi !")
                     return@launch
                 }
+            } else {
+                triggerVibration(3) // Tactile move tick for AI's move
             }
             
             val colNames = listOf("a", "b", "c", "d", "e", "f", "g", "h")
@@ -1027,6 +1598,7 @@ class AuraViewModel(application: Application) : AndroidViewModel(application) {
         memoryCards[index] = memoryCards[index].copy(isFlipped = true)
         memorySelectedIndices.add(index)
         triggerBeep(3)
+        triggerVibration(1) // Flipping card crisp tick
 
         if (memorySelectedIndices.size == 2) {
             memoryMovesCount += 1
@@ -1042,6 +1614,7 @@ class AuraViewModel(application: Application) : AndroidViewModel(application) {
                     memoryCards[secondIdx] = memoryCards[secondIdx].copy(isMatched = true)
                     memorySelectedIndices.clear()
                     triggerBeep(1)
+                    triggerVibration(1) // Match success pulse
 
                     if (memoryCards.all { it.isMatched }) {
                         memoryCompleted = true
@@ -1058,6 +1631,7 @@ class AuraViewModel(application: Application) : AndroidViewModel(application) {
                         memoryEarnedXp = totalXp
                         memoryResultMessage = "Victoire ! Vous avez trouvé toutes les paires en $moves coups ! 🎉 (+ $totalCoins 🪙, + $totalXp XP)"
                         triggerBeep(1)
+                        triggerVibration(4) // High level victory double pulse
                     }
                 }
             } else {
@@ -1069,6 +1643,7 @@ class AuraViewModel(application: Application) : AndroidViewModel(application) {
                     }
                     memorySelectedIndices.clear()
                     triggerBeep(2)
+                    triggerVibration(2) // Mistake error rumble
                 }
             }
         }
@@ -1120,6 +1695,16 @@ class AuraViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    fun updateTaskCustomColor(id: Int, hexColor: String?) {
+        viewModelScope.launch {
+            val taskToUpdate = tasks.value.find { it.id == id }
+            if (taskToUpdate != null) {
+                val updated = taskToUpdate.copy(customBgColorHex = hexColor)
+                repository.insertTask(updated)
+            }
+        }
+    }
+
     fun deleteTask(id: Int) {
         viewModelScope.launch {
             repository.deleteTaskById(id)
@@ -1135,25 +1720,60 @@ class AuraViewModel(application: Application) : AndroidViewModel(application) {
     fun clearAllData() {
         viewModelScope.launch {
             repository.clearAllData()
-            chatMessages.value = listOf(
-                "Toutes les données ont été réinitialisées avec succès. Comment puis-je vous aider à démarrer à nouveau ?" to false
-            )
+            val resetText = when (appLanguage) {
+                "EN" -> "All data reset successfully. How can I help you get started again?"
+                "ES" -> "Todos los datos se han restablecido con éxito. ¿Cómo puedo ayudarte a comenzar de nuevo?"
+                "DE" -> "Alle Daten wurden erfolgreich zurückgesetzt. Wie kann ich dir beim Neustart helfen?"
+                "ZH" -> "所有数据已成功重置！我该如何协助您重新出发？"
+                "HI" -> "सभी डेटा सफलतापूर्वक रीसेट हो गया। फिर से शुरू करने में मैं आपकी क्या मदद कर सकता हूँ?"
+                else -> "Toutes les données ont été réinitialisées avec succès. Comment puis-je vous aider à démarrer à nouveau ?"
+            }
+            chatMessages.value = listOf(resetText to false)
             aiReport = null
         }
     }
 
     // AI Operations
-    fun generateTasksWithAi(goal: String) {
+    fun generateTasksWithAi(goal: String, durationDays: Int? = null) {
         if (goal.isBlank()) return
+        
+        // Fee Tier limit check: 5 free designs per day
+        if (subscriptionTier == "Gratuit" && freeGoalGenerationsToday >= 5) {
+            if (coins >= 50) {
+                coins -= 50
+                triggerBeep(3)
+                // Continue execution below, spending 50 coins
+            } else {
+                Toast.makeText(getApplication(), "Limite gratuite atteinte (5/jour). Requis: 50 pièces d'or ou abonnement Premium/Pro pour débloquer de futures décompositions !", Toast.LENGTH_LONG).show()
+                return
+            }
+        }
+
         viewModelScope.launch {
             isGeneratingTasks = true
             try {
-                val newTasks = repository.generateAiTasks(goal)
+                val newTasks = repository.generateAiTasks(goal, durationDays)
                 if (newTasks.isNotEmpty()) {
                     repository.insertTasks(newTasks)
+                    if (subscriptionTier == "Gratuit") {
+                        freeGoalGenerationsToday += 1
+                    }
+                    val msgText = if (subscriptionTier == "Gratuit") {
+                        if (freeGoalGenerationsToday > 5) {
+                            "Objectif décomposé par Mirys IA ! (-50 🪙 dépensés)"
+                        } else {
+                            "Objectif décomposé par Mirys IA ! ($freeGoalGenerationsToday/5 gratuit(s) aujourd'hui)"
+                        }
+                    } else {
+                        "Objectif décomposé par Mirys IA (Premium Illimité) ! ✨"
+                    }
+                    Toast.makeText(getApplication(), msgText, Toast.LENGTH_LONG).show()
+                    triggerBeep(1)
+                } else {
+                    Toast.makeText(getApplication(), "Mirys IA n'a pas pu structurer d'étapes. Veuillez réessayer avec un objectif plus clair.", Toast.LENGTH_SHORT).show()
                 }
             } catch (e: Exception) {
-                // Handled in repository, just clear generating state
+                Toast.makeText(getApplication(), "Une erreur s'est produite lors de l'appel à Mirys IA.", Toast.LENGTH_SHORT).show()
             } finally {
                 isGeneratingTasks = false
             }
@@ -1194,7 +1814,15 @@ class AuraViewModel(application: Application) : AndroidViewModel(application) {
                 chatMessages.value = updatedList
             } catch (e: Exception) {
                 val updatedList = chatMessages.value.toMutableList()
-                updatedList.add("Désolé, j'ai rencontré un problème d'accès réseau." to false)
+                val errText = when (appLanguage) {
+                    "EN" -> "Sorry, I encountered an internet connection issue."
+                    "ES" -> "Lo siento, encontré un problema con la conexión a internet."
+                    "DE" -> "Entschuldigung, es gab ein Problem mit der Internetverbindung."
+                    "ZH" -> "抱歉，遇到网络连接问题，请稍后重试。"
+                    "HI" -> "क्षमा करें, मुझे नेटवर्क एक्सेस में समस्या आ रही है।"
+                    else -> "Désolé, j'ai rencontré un problème d'accès réseau."
+                }
+                updatedList.add(errText to false)
                 chatMessages.value = updatedList
             } finally {
                 isChatLoading = false
@@ -1203,9 +1831,95 @@ class AuraViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun clearChat() {
-        chatMessages.value = listOf(
-            "Historique effacé. Je suis prêt pour une nouvelle discussion !" to false
-        )
+        val clearText = when (appLanguage) {
+            "EN" -> "Chat history cleared. I'm ready for our next conversation!"
+            "ES" -> "Historial borrado. ¡Estoy listo para una nueva conversación!"
+            "DE" -> "Chatverlauf gelöscht. Ich bin bereit für ein neues Gespräch!"
+            "ZH" -> "聊天历史已清除。我已经准备好进行新的对话了！"
+            "HI" -> "चैट इतिहास हटा दिया गया। मैं एक नई बातचीत के लिए तैयार हूँ!"
+            else -> "Historique effacé. Je suis prêt pour une nouvelle discussion !"
+        }
+        chatMessages.value = listOf(clearText to false)
+    }
+
+    // --- 10 PREMIUM HUB HELPER METHODS ---
+    fun selectAuraSkin(skinName: String) {
+        activatedAuraSkin = skinName
+        triggerBeep(1)
+        triggerVibration(2) // tactile click
+    }
+
+    fun setMoodHaloStatus(haloName: String?) {
+        activeMoodHalo = haloName
+        triggerBeep(1)
+        triggerVibration(1)
+    }
+
+    fun triggerPremiumDreamOracle(dreamText: String) {
+        if (dreamText.isBlank()) return
+        isDreamOracleAnalyzing = true
+        viewModelScope.launch {
+            try {
+                val result = repository.analyzeDreamWithIA(dreamText)
+                premiumDreamAnalysisResult = result.first
+                premiumDreamOracleCard = result.second
+                premiumDreamMoodColorHex = result.third
+                triggerBeep(2)
+                triggerVibration(4)
+            } catch (e: Exception) {
+                premiumDreamAnalysisResult = "Une vibration céleste a perturbé notre Oracle. Veuillez réessayer."
+                premiumDreamOracleCard = "La Tempête ⚡"
+                premiumDreamMoodColorHex = "#EF4444"
+            } finally {
+                isDreamOracleAnalyzing = false
+            }
+        }
+    }
+
+    suspend fun runPremiumTranslation(text: String, targetLang: String): String {
+        return repository.translateText(text, targetLang)
+    }
+
+    fun scanPremiumRadar(onDone: () -> Unit) {
+        premiumRadarScanning = true
+        viewModelScope.launch {
+            kotlinx.coroutines.delay(2500)
+            premiumRadarScanning = false
+            onDone()
+            triggerBeep(1)
+            triggerVibration(5)
+        }
+    }
+
+    fun generatePremiumQuestChoice(choiceIdx: Int) {
+        premiumStoryStep = choiceIdx
+        premiumStoryPoints += 15
+        coins += 10
+        triggerBeep(1)
+        triggerVibration(3)
+    }
+
+    fun playPremiumAmbientSound(theme: String) {
+        premiumSoundscapeTheme = theme
+        if (theme != "none") {
+            when (theme) {
+                "serenity" -> {
+                    triggerBeep(2) // Play Serene 440hz tone
+                }
+                "nebula" -> {
+                    triggerBeep(3) // Cosmic 660hz tone
+                }
+                "fire" -> {
+                    triggerBeep(1) // High energy tone
+                }
+            }
+        }
+    }
+
+    fun resetPremiumQuest() {
+        premiumStoryStep = 1
+        premiumStoryPoints = 0
+        triggerBeep(3)
     }
 }
 
@@ -1258,6 +1972,9 @@ data class DirectMessage(
     val content: String,
     val timestamp: String,
     val isVoiceNote: Boolean = false,
-    val voiceNoteDuration: Int = 0
+    val voiceNoteDuration: Int = 0,
+    val photoUrl: String? = null,
+    val isVideo: Boolean = false,
+    val videoUrl: String? = null
 )
 

@@ -9,7 +9,7 @@ import com.example.data.dao.TaskDao
 import com.example.data.model.JournalEntry
 import com.example.data.model.Task
 
-@Database(entities = [JournalEntry::class, Task::class], version = 1, exportSchema = false)
+@Database(entities = [JournalEntry::class, Task::class], version = 2, exportSchema = false)
 abstract class AppDatabase : RoomDatabase() {
     abstract fun journalDao(): JournalDao
     abstract fun taskDao(): TaskDao

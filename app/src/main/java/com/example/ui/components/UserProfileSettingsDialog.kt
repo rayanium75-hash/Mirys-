@@ -10,12 +10,16 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.graphics.*
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
@@ -30,6 +34,9 @@ import androidx.compose.ui.window.DialogProperties
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.ui.viewmodel.AuraViewModel
+import com.example.ui.viewmodel.SubRegion
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -99,7 +106,7 @@ fun UserProfileSettingsDialog(
                         modifier = Modifier.testTag("close_profile_dialog")
                     ) {
                         Icon(
-                            imageVector = Icons.Default.ArrowBack,
+                            imageVector = Icons.Outlined.ArrowBack,
                             contentDescription = "Fermer le profil",
                             tint = Color.White
                         )
@@ -230,6 +237,77 @@ fun ProfileEditorSection(
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
+        // Statistics Card for current user
+        Card(
+            shape = RoundedCornerShape(20.dp),
+            colors = CardDefaults.cardColors(containerColor = Color(0xFF0C1625)),
+            border = BorderStroke(1.2.dp, Color(0xFF16253B)),
+            modifier = Modifier.fillMaxWidth().testTag("my_profile_stats_card")
+        ) {
+            Column(
+                modifier = Modifier.padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                Text(
+                    text = "Mes Statistiques d'Aura 🌌",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 14.sp,
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.fillMaxWidth(),
+                    textAlign = TextAlign.Start
+                )
+                
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceEvenly,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    val handle = viewModel.userHandle
+                    val subscribersCount = viewModel.getSubscribersCount(handle)
+                    val followingCount = viewModel.getFollowingCount(handle)
+                    val myPosts = viewModel.postsList.filter { it.authorHandle.lowercase() == handle.lowercase() }
+                    val publicationsCount = myPosts.size
+
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(
+                            text = String.format("%,d", subscribersCount),
+                            fontWeight = FontWeight.Black,
+                            fontSize = 18.sp,
+                            color = Color.White
+                        )
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Text(text = "Abonnés 👥", fontSize = 10.sp, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
+                    }
+
+                    Box(modifier = Modifier.width(1.dp).height(24.dp).background(Color(0xFF16253B)))
+
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(
+                            text = String.format("%,d", followingCount),
+                            fontWeight = FontWeight.Black,
+                            fontSize = 18.sp,
+                            color = Color.White
+                        )
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Text(text = "Abonnements 🔗", fontSize = 10.sp, color = Color.LightGray, fontWeight = FontWeight.Bold)
+                    }
+
+                    Box(modifier = Modifier.width(1.dp).height(24.dp).background(Color(0xFF16253B)))
+
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(
+                            text = "$publicationsCount",
+                            fontWeight = FontWeight.Black,
+                            fontSize = 18.sp,
+                            color = Color.White
+                        )
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Text(text = "Publications 📝", fontSize = 10.sp, color = Color.LightGray, fontWeight = FontWeight.Bold)
+                    }
+                }
+            }
+        }
+
         // Core interactive Photo Editor Frame
         Card(
             shape = RoundedCornerShape(24.dp),
@@ -252,39 +330,42 @@ fun ProfileEditorSection(
                 )
 
                 // Visual Picture Canvas with realtime Filters, Scale and Contrast
-                Box(
-                    modifier = Modifier
-                        .padding(vertical = 12.dp)
-                        .size(150.dp)
-                        .clip(CircleShape)
-                        .border(
-                            2.dp,
-                            Brush.linearGradient(
-                                listOf(
-                                    MaterialTheme.colorScheme.primary,
-                                    MaterialTheme.colorScheme.secondary
-                                )
-                            ),
-                            CircleShape
-                        ),
-                    contentAlignment = Alignment.Center
+                ProfileVfxWrapper(
+                    badgeName = viewModel.equippedBadge,
+                    modifier = Modifier.size(150.dp)
                 ) {
-                    RenderPresetAvatar(
-                        preset = viewModel.profilePhotoPreset,
-                        filter = viewModel.profileFilter,
-                        brightness = viewModel.profileBrightness,
-                        contrast = viewModel.profileContrast,
-                        zoom = viewModel.profileZoom,
-                        cropX = viewModel.profileCropX,
-                        cropY = viewModel.profileCropY,
-                        username = username,
-                        modifier = Modifier.fillMaxSize(),
-                        customUri = viewModel.customProfilePhotoUri
-                    )
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .clip(CircleShape)
+                            .border(
+                                2.dp,
+                                Brush.linearGradient(
+                                    listOf(
+                                        MaterialTheme.colorScheme.primary,
+                                        MaterialTheme.colorScheme.secondary
+                                    )
+                                ),
+                                CircleShape
+                            ),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        RenderPresetAvatar(
+                            preset = viewModel.profilePhotoPreset,
+                            filter = viewModel.profileFilter,
+                            brightness = viewModel.profileBrightness,
+                            contrast = viewModel.profileContrast,
+                            zoom = viewModel.profileZoom,
+                            cropX = viewModel.profileCropX,
+                            cropY = viewModel.profileCropY,
+                            username = username,
+                            modifier = Modifier.fillMaxSize(),
+                            customUri = viewModel.customProfilePhotoUri
+                        )
 
-                    // Virtual Cropping Frame Overlay
-                    if (showCropOverlay) {
-                        Box(
+                        // Virtual Cropping Frame Overlay
+                        if (showCropOverlay) {
+                            Box(
                             modifier = Modifier
                                 .fillMaxSize()
                                 .background(Color.Black.copy(alpha = 0.25f))
@@ -338,6 +419,7 @@ fun ProfileEditorSection(
                         }
                     }
                 }
+            }
 
                 // Interactive Crop and Upload Actions Row
                 Row(
@@ -386,7 +468,7 @@ fun ProfileEditorSection(
                             .testTag("upload_custom_photo_btn")
                     ) {
                         Icon(
-                            imageVector = Icons.Default.CloudUpload,
+                            imageVector = Icons.Outlined.CloudUpload,
                             contentDescription = "Upload",
                             modifier = Modifier.size(14.dp),
                             tint = if (viewModel.profilePhotoPreset == "Custom") MaterialTheme.colorScheme.primary else Color.White
@@ -416,7 +498,7 @@ fun ProfileEditorSection(
                             .testTag("toggle_crop_trigger")
                     ) {
                         Icon(
-                            imageVector = Icons.Default.Crop,
+                            imageVector = Icons.Outlined.Crop,
                             contentDescription = "Couper",
                             modifier = Modifier.size(14.dp)
                         )
@@ -443,7 +525,7 @@ fun ProfileEditorSection(
                         modifier = Modifier.size(36.dp)
                     ) {
                         Icon(
-                            imageVector = Icons.Default.RestartAlt,
+                            imageVector = Icons.Outlined.RestartAlt,
                             contentDescription = "Réinitialiser",
                             tint = Color.LightGray
                         )
@@ -757,7 +839,7 @@ fun SettingsSection(viewModel: AuraViewModel) {
                     subtitle = getTranslatedText("notification_desc", viewModel.appLanguage),
                     enabledState = viewModel.settingsNotificationsEnabled,
                     onToggle = { viewModel.settingsNotificationsEnabled = it },
-                    iconElement = Icons.Default.Notifications,
+                    iconElement = Icons.Outlined.Notifications,
                     tag = "toggle_notifications"
                 )
 
@@ -769,7 +851,7 @@ fun SettingsSection(viewModel: AuraViewModel) {
                     subtitle = getTranslatedText("sound_desc", viewModel.appLanguage),
                     enabledState = viewModel.settingsAudioEnabled,
                     onToggle = { viewModel.settingsAudioEnabled = it },
-                    iconElement = Icons.Default.VolumeUp,
+                    iconElement = Icons.Outlined.VolumeUp,
                     tag = "toggle_audio"
                 )
 
@@ -781,7 +863,7 @@ fun SettingsSection(viewModel: AuraViewModel) {
                     subtitle = getTranslatedText("haptic_desc", viewModel.appLanguage),
                     enabledState = viewModel.settingsHapticEnabled,
                     onToggle = { viewModel.settingsHapticEnabled = it },
-                    iconElement = Icons.Default.Vibration,
+                    iconElement = Icons.Outlined.Vibration,
                     tag = "toggle_haptic"
                 )
 
@@ -793,7 +875,7 @@ fun SettingsSection(viewModel: AuraViewModel) {
                     subtitle = getTranslatedText("privacy_desc", viewModel.appLanguage),
                     enabledState = viewModel.settingsAccountPrivate,
                     onToggle = { viewModel.settingsAccountPrivate = it },
-                    iconElement = Icons.Default.Lock,
+                    iconElement = Icons.Outlined.Lock,
                     tag = "toggle_privacy"
                 )
 
@@ -805,7 +887,7 @@ fun SettingsSection(viewModel: AuraViewModel) {
                     subtitle = getTranslatedText("deep_dark_desc", viewModel.appLanguage),
                     enabledState = viewModel.settingsDeepDarkTheme,
                     onToggle = { viewModel.settingsDeepDarkTheme = it },
-                    iconElement = Icons.Default.NightsStay,
+                    iconElement = Icons.Outlined.NightsStay,
                     tag = "toggle_space_theme"
                 )
             }
@@ -867,26 +949,54 @@ fun SettingsSection(viewModel: AuraViewModel) {
             colors = CardDefaults.cardColors(containerColor = Color(0xFF08101C)),
             modifier = Modifier.fillMaxWidth()
         ) {
-            Row(
+            Column(
                 modifier = Modifier.fillMaxWidth().padding(12.dp),
-                horizontalArrangement = Arrangement.spacedBy(6.dp),
-                verticalAlignment = Alignment.CenterVertically
+                verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                listOf("FR" to "Français", "EN" to "English", "ES" to "Español", "DE" to "Deutsch").forEach { (code, name) ->
-                    val isSelected = viewModel.appLanguage == code
-                    Button(
-                        onClick = {
-                            viewModel.appLanguage = code
-                            viewModel.triggerBeep(3)
-                        },
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = if (isSelected) MaterialTheme.colorScheme.primary else Color(0xFF131F37)
-                        ),
-                        modifier = Modifier.weight(1f).testTag("lang_btn_$code"),
-                        shape = RoundedCornerShape(12.dp),
-                        contentPadding = PaddingValues(vertical = 4.dp)
-                    ) {
-                        Text(text = name, fontSize = 10.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    listOf("FR" to "Français", "EN" to "English", "ES" to "Español").forEach { (code, name) ->
+                        val isSelected = viewModel.appLanguage == code
+                        Button(
+                            onClick = {
+                                viewModel.appLanguage = code
+                                viewModel.triggerBeep(3)
+                            },
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = if (isSelected) MaterialTheme.colorScheme.primary else Color(0xFF131F37)
+                            ),
+                            modifier = Modifier.weight(1f).testTag("lang_btn_$code"),
+                            shape = RoundedCornerShape(12.dp),
+                            contentPadding = PaddingValues(vertical = 4.dp)
+                        ) {
+                            Text(text = name, fontSize = 10.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                        }
+                    }
+                }
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    listOf("ZH" to "中文", "HI" to "हिन्दी", "DE" to "Deutsch").forEach { (code, name) ->
+                        val isSelected = viewModel.appLanguage == code
+                        Button(
+                            onClick = {
+                                viewModel.appLanguage = code
+                                viewModel.triggerBeep(3)
+                            },
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = if (isSelected) MaterialTheme.colorScheme.primary else Color(0xFF131F37)
+                            ),
+                            modifier = Modifier.weight(1f).testTag("lang_btn_$code"),
+                            shape = RoundedCornerShape(12.dp),
+                            contentPadding = PaddingValues(vertical = 4.dp)
+                        ) {
+                            Text(text = name, fontSize = 10.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                        }
                     }
                 }
             }
@@ -912,7 +1022,7 @@ fun SettingsSection(viewModel: AuraViewModel) {
                 horizontalArrangement = Arrangement.spacedBy(10.dp)
             ) {
                 Icon(
-                    imageVector = Icons.Default.Info,
+                    imageVector = Icons.Outlined.Info,
                     contentDescription = null,
                     tint = Color(0xFF00FFCC),
                     modifier = Modifier.size(24.dp)
@@ -931,7 +1041,7 @@ fun SettingsSection(viewModel: AuraViewModel) {
                     )
                 }
                 Icon(
-                    imageVector = Icons.Default.ChevronRight,
+                    imageVector = Icons.Outlined.ChevronRight,
                     contentDescription = null,
                     tint = Color.Gray,
                     modifier = Modifier.size(16.dp)
@@ -953,14 +1063,14 @@ fun SettingsSection(viewModel: AuraViewModel) {
                         verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
                         Text(
-                            text = "Charte d'Utilisation Aura Mirys 🧘",
+                            text = "Charte d'Utilisation Mirys 🧘",
                             fontWeight = FontWeight.ExtraBold,
                             fontSize = 16.sp,
                             color = Color(0xFF00FFCC)
                         )
 
                         Text(
-                            text = "Aura Mirys est une plateforme harmonieuse de développement personnel connectant socialement les utilisateurs à travers l'art, les échecs et la parole sage.",
+                            text = "Mirys est une plateforme harmonieuse de développement personnel connectant socialement les utilisateurs à travers l'art, les échecs et la parole sage.",
                             fontSize = 11.sp,
                             color = Color.LightGray
                         )
@@ -1064,7 +1174,7 @@ fun SettingsSection(viewModel: AuraViewModel) {
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     Icon(
-                        imageVector = Icons.Default.WorkspacePremium,
+                        imageVector = Icons.Outlined.WorkspacePremium,
                         contentDescription = null,
                         tint = Color(0xFFFFD700)
                     )
@@ -1275,8 +1385,8 @@ fun SubscriptionSection(viewModel: AuraViewModel) {
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
-                        imageVector = if (viewModel.subscriptionTier == "Gratuit") Icons.Default.Person
-                                      else Icons.Default.WorkspacePremium,
+                        imageVector = if (viewModel.subscriptionTier == "Gratuit") Icons.Outlined.Person
+                                      else Icons.Outlined.WorkspacePremium,
                         contentDescription = null,
                         tint = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.size(26.dp)
@@ -1293,6 +1403,61 @@ fun SubscriptionSection(viewModel: AuraViewModel) {
                 fontSize = 15.sp,
                 color = Color.White
             )
+
+            // Selection of regional currency (Sous-région)
+            Text(
+                text = "Sélectionnez votre sous-région pour la facturation :",
+                fontWeight = FontWeight.Bold,
+                fontSize = 13.sp,
+                color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.padding(top = 4.dp, bottom = 2.dp)
+            )
+
+            // Horizontal row of sub-region buttons
+            androidx.compose.foundation.lazy.LazyRow(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier.fillMaxWidth().testTag("sub_region_selector")
+            ) {
+                items(viewModel.subRegionsList) { subRegion ->
+                    val isSelected = viewModel.selectedSubRegionId == subRegion.id
+                    Card(
+                        colors = CardDefaults.cardColors(
+                            containerColor = if (isSelected) MaterialTheme.colorScheme.primaryContainer else Color(0xFF0F1B2F)
+                        ),
+                        border = BorderStroke(
+                            width = if (isSelected) 2.dp else 1.dp,
+                            color = if (isSelected) MaterialTheme.colorScheme.primary else Color(0xFF1E2E4A)
+                        ),
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier.clickable {
+                            viewModel.selectedSubRegionId = subRegion.id
+                            viewModel.triggerBeep(1)
+                        }
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            Text(subRegion.flag, fontSize = 16.sp)
+                            Column {
+                                java.lang.String.valueOf(subRegion.id) // keep compile clean
+                                Text(
+                                    text = subRegion.id,
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.ExtraBold,
+                                    color = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer else Color.White
+                                )
+                                Text(
+                                    text = subRegion.currencySymbol,
+                                    fontSize = 9.sp,
+                                    color = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f) else Color.Gray
+                                )
+                            }
+                        }
+                    }
+                }
+            }
 
             // Offer Pro Plan
             Card(
@@ -1324,7 +1489,7 @@ fun SubscriptionSection(viewModel: AuraViewModel) {
                         verticalAlignment = Alignment.Bottom,
                         horizontalArrangement = Arrangement.spacedBy(4.dp)
                     ) {
-                        Text("4,99 €", fontSize = 28.sp, fontWeight = FontWeight.Black, color = MaterialTheme.colorScheme.primary)
+                        Text(viewModel.currentSubRegion.proPriceFormatted, fontSize = 28.sp, fontWeight = FontWeight.Black, color = MaterialTheme.colorScheme.primary)
                         Text("/ mois", fontSize = 13.sp, color = Color.Gray, modifier = Modifier.padding(bottom = 4.dp))
                     }
 
@@ -1332,7 +1497,7 @@ fun SubscriptionSection(viewModel: AuraViewModel) {
 
                     benefitsPro.forEach { benefit ->
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.Default.Check, contentDescription = null, tint = Color(0xFF00E676), modifier = Modifier.size(14.dp))
+                            Icon(Icons.Outlined.Check, contentDescription = null, tint = Color(0xFF00E676), modifier = Modifier.size(14.dp))
                             Spacer(modifier = Modifier.width(8.dp))
                             Text(benefit, fontSize = 12.sp, color = Color.LightGray)
                         }
@@ -1343,7 +1508,7 @@ fun SubscriptionSection(viewModel: AuraViewModel) {
                     Button(
                         onClick = {
                             checkoutTierSelected = "Pro ✨"
-                            checkoutPriceSelected = "4,99 €/m"
+                            checkoutPriceSelected = viewModel.currentSubRegion.proRawPriceString
                             showCheckoutPanel = true
                             viewModel.triggerBeep(3)
                         },
@@ -1386,7 +1551,7 @@ fun SubscriptionSection(viewModel: AuraViewModel) {
                         verticalAlignment = Alignment.Bottom,
                         horizontalArrangement = Arrangement.spacedBy(4.dp)
                     ) {
-                        Text("9,99 €", fontSize = 28.sp, fontWeight = FontWeight.Black, color = Color(0xFFFFD700))
+                        Text(viewModel.currentSubRegion.premiumPriceFormatted, fontSize = 28.sp, fontWeight = FontWeight.Black, color = Color(0xFFFFD700))
                         Text("/ mois", fontSize = 13.sp, color = Color.Gray, modifier = Modifier.padding(bottom = 4.dp))
                     }
 
@@ -1394,7 +1559,7 @@ fun SubscriptionSection(viewModel: AuraViewModel) {
 
                     benefitsPremium.forEach { benefit ->
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.Default.Check, contentDescription = null, tint = Color(0xFFFFD700), modifier = Modifier.size(14.dp))
+                            Icon(Icons.Outlined.Check, contentDescription = null, tint = Color(0xFFFFD700), modifier = Modifier.size(14.dp))
                             Spacer(modifier = Modifier.width(8.dp))
                             Text(benefit, fontSize = 12.sp, color = Color.LightGray)
                         }
@@ -1405,7 +1570,7 @@ fun SubscriptionSection(viewModel: AuraViewModel) {
                     Button(
                         onClick = {
                             checkoutTierSelected = "Premium Ultimate 👑"
-                            checkoutPriceSelected = "9,99 €/m"
+                            checkoutPriceSelected = viewModel.currentSubRegion.premiumRawPriceString
                             showCheckoutPanel = true
                             viewModel.triggerBeep(3)
                         },
@@ -1588,8 +1753,15 @@ fun SubscriptionSection(viewModel: AuraViewModel) {
                             if (isProcessingPayment) {
                                 CircularProgressIndicator(modifier = Modifier.size(22.dp), strokeWidth = 2.5.dp, color = Color.Black)
                             } else {
-                                val valueToPay = if (promoApplied) "Payer " + if (checkoutTierSelected.contains("Pro")) "2,49 €" else "4,99 €"
-                                                 else "Confirmer & Payer " + if (checkoutTierSelected.contains("Pro")) "4,99 €" else "9,99 €"
+                                val numericPrice = if (checkoutTierSelected.contains("Pro")) viewModel.currentSubRegion.proNumericPrice else viewModel.currentSubRegion.premiumNumericPrice
+                                val currencySymbol = viewModel.currentSubRegion.currencySymbol
+                                val finalPrice = if (promoApplied) numericPrice * 0.5 else numericPrice
+                                val formattedFinalPrice = if (finalPrice % 1 == 0.0) {
+                                    "${finalPrice.toInt()} $currencySymbol"
+                                } else {
+                                    String.format(java.util.Locale.US, "%.2f", finalPrice).replace(".", ",") + " " + currencySymbol
+                                }
+                                val valueToPay = if (promoApplied) "Payer $formattedFinalPrice" else "Confirmer & Payer $formattedFinalPrice"
                                 Text(valueToPay, fontWeight = FontWeight.Bold)
                             }
                         }
@@ -1602,7 +1774,7 @@ fun SubscriptionSection(viewModel: AuraViewModel) {
                             horizontalAlignment = Alignment.CenterHorizontally,
                             verticalArrangement = Arrangement.spacedBy(10.dp)
                         ) {
-                            Icon(Icons.Default.TaskAlt, contentDescription = null, tint = Color(0xFF00E676), modifier = Modifier.size(56.dp))
+                            Icon(Icons.Outlined.TaskAlt, contentDescription = null, tint = Color(0xFF00E676), modifier = Modifier.size(56.dp))
 
                             Text("Souscription réussie ! 🎉", fontSize = 18.sp, fontWeight = FontWeight.ExtraBold, color = Color.White)
                             Text(
@@ -1909,129 +2081,381 @@ fun ProfileVfxWrapper(
 ) {
     val infiniteTransition = rememberInfiniteTransition(label = "profile_vfx")
     
-    val angle by infiniteTransition.animateFloat(
+    // Ring 1 angle (linear, 6s period)
+    val angle1 by infiniteTransition.animateFloat(
         initialValue = 0f,
         targetValue = 360f,
         animationSpec = infiniteRepeatable(
-            animation = tween(4000, easing = LinearEasing),
+            animation = tween(6000, easing = LinearEasing),
             repeatMode = RepeatMode.Restart
         ),
-        label = "orbit_angle"
+        label = "spin_6s"
     )
 
-    val glowScale by infiniteTransition.animateFloat(
-        initialValue = 0.8f,
-        targetValue = 1.2f,
+    // Ring 2 angle (linear reverse, 9s period)
+    val angle2 by infiniteTransition.animateFloat(
+        initialValue = 360f,
+        targetValue = 0f,
         animationSpec = infiniteRepeatable(
-            animation = tween(2000, easing = LinearEasing),
+            animation = tween(9000, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "spin_reverse_9s"
+    )
+
+    // Ring 3 angle (linear, 18s period)
+    val angle3 by infiniteTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = 360f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(18000, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "spin_18s"
+    )
+
+    // Ring 4 angle (linear reverse, 13s period)
+    val angle4 by infiniteTransition.animateFloat(
+        initialValue = 360f,
+        targetValue = 0f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(13000, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "spin_reverse_13s"
+    )
+
+    // Ring 5 angle (alternate ease-in-out, 4s period)
+    val angle5 by infiniteTransition.animateFloat(
+        initialValue = -60f,
+        targetValue = 120f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(4000, easing = FastOutSlowInEasing),
             repeatMode = RepeatMode.Reverse
         ),
-        label = "pulse_glow"
+        label = "spin_alternate_4s"
     )
+
+    // Glow pulse (4s period)
+    val glowScale by infiniteTransition.animateFloat(
+        initialValue = 0.6f,
+        targetValue = 1.0f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(4000, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "glow_pulse"
+    )
+
+    // Floating offset for the avatar content (6s period)
+    val floatyOffset by infiniteTransition.animateFloat(
+        initialValue = -4f,
+        targetValue = 4f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(6000, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "avatar_floaty"
+    )
+
+    // Shine sweep progress
+    val shineProgress by infiniteTransition.animateFloat(
+        initialValue = -1.5f,
+        targetValue = 1.5f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(3500, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "shine_sweep"
+    )
+
+    val now = System.currentTimeMillis()
+
+    // Determine premium color palette based on equipped badge
+    val priceTierColors = when {
+        badgeName?.contains("Flame", true) == true -> {
+            listOf(Color(0xFFFF3000), Color(0xFFFF7A00), Color(0xFFFFD830), Color(0xFFFF3D00)) // Fiery / Flame
+        }
+        badgeName?.contains("Galaxy", true) == true -> {
+            listOf(Color(0xFFB14EFF), Color(0xFFE040FB), Color(0xFF00E5FF), Color(0xFF3F51B5)) // Cosmic / Galaxy
+        }
+        badgeName?.contains("Crystal", true) == true -> {
+            listOf(Color(0xFF00E5FF), Color(0xFFE0F7FA), Color(0xFFFF7AFF), Color(0xFF0097A7)) // Opal / Crystal
+        }
+        badgeName?.contains("Neon", true) == true -> {
+            listOf(Color(0xFFFF2D75), Color(0xFF00FF9D), Color(0xFFD500F9), Color(0xFF00FFCC)) // Cyberpunk Pink / Neon
+        }
+        badgeName?.contains("Legendary", true) == true -> {
+            listOf(Color(0xFFFFD83D), Color(0xFFFFF9C4), Color(0xFFFF7A00), Color(0xFFFFD700)) // Golden Sovereign
+        }
+        badgeName?.contains("Champion", true) == true -> {
+            listOf(Color(0xFF00E5FF), Color(0xFF2979FF), Color(0xFFFFFFFF), Color(0xFF00FF9D)) // Blue Vents
+        }
+        badgeName?.contains("Futuristic", true) == true -> {
+            listOf(Color(0xFF00FF9D), Color(0xFF00E5FF), Color(0xFF60EFFF), Color(0xFF00E676)) // Matrix/Futur
+        }
+        badgeName?.isNotBlank() == true || isOfficial -> {
+            listOf(
+                Color(0xFFFF2D75),
+                Color(0xFF00E5FF),
+                Color(0xFFB14EFF),
+                Color(0xFFFFD83D),
+                Color(0xFF00FF9D),
+                Color(0xFFFF7A00)
+            ) // Creator dynamic rainbow aurora
+        }
+        else -> null
+    }
 
     Box(
         modifier = modifier.padding(6.dp),
         contentAlignment = Alignment.Center
     ) {
-        Canvas(modifier = Modifier.fillMaxSize()) {
-            val w = size.width
-            val h = size.height
-            val center = Offset(w / 2f, h / 2f)
-            val radius = (w / 2f)
+        if (priceTierColors != null) {
+            Canvas(modifier = Modifier.fillMaxSize()) {
+                val w = size.width
+                val h = size.height
+                val center = Offset(w / 2f, h / 2f)
+                val radius = w * 0.38f // Allocate padding for outer halos, sparkles, and particle physics
 
-            when {
-                badgeName?.contains("Créateur", true) == true || isOfficial -> {
-                    drawCircle(
-                        color = Color(0xFFFFD700).copy(alpha = 0.2f * glowScale),
-                        radius = radius * 1.15f,
-                        style = Stroke(width = 2f)
-                    )
-                    drawCircle(
-                        color = Color(0xFF00E5FF).copy(alpha = 0.15f),
-                        radius = radius * 1.05f,
-                        style = Stroke(width = 1.5f)
-                    )
+                // 1. CINEMA BACKGROUND RADIATION ATMOSPHERIC HALO GLOW
+                val pulseColor = priceTierColors.getOrElse(0) { Color.Cyan }.copy(alpha = 0.35f * glowScale)
+                drawCircle(
+                    brush = Brush.radialGradient(
+                        colors = listOf(pulseColor, Color.Transparent),
+                        center = center,
+                        radius = radius * 1.6f
+                    ),
+                    radius = radius * 1.6f
+                )
 
-                    val rad1 = Math.toRadians(angle.toDouble())
-                    val x1 = center.x + Math.cos(rad1).toFloat() * radius * 1.1f
-                    val y1 = center.y + Math.sin(rad1).toFloat() * radius * 1.1f
+                // 2. CONCENTRIC CINEMATIC ROTATING VFX RINGS
+                // Ring 1: Conic Sweep Ring (Spin 6s)
+                rotate(angle1) {
                     drawCircle(
-                        color = Color(0xFF00FFCC),
-                        radius = 6f,
-                        center = Offset(x1, y1)
-                    )
-
-                    val rad2 = Math.toRadians((360f - angle + 180f).toDouble())
-                    val x2 = center.x + Math.cos(rad2).toFloat() * radius * 1.15f
-                    val y2 = center.y + Math.sin(rad2).toFloat() * radius * 1.15f
-                    drawCircle(
-                        color = Color(0xFFFFD700),
-                        radius = 8f * glowScale,
-                        center = Offset(x2, y2)
+                        brush = Brush.sweepGradient(
+                            colors = priceTierColors + priceTierColors.first(),
+                            center = center
+                        ),
+                        radius = radius,
+                        style = Stroke(width = 3.dp.toPx() * (0.8f + 0.2f * glowScale))
                     )
                 }
 
-                badgeName?.contains("Flame", true) == true -> {
-                    val offsetY = (glowScale - 1f) * 12f
+                // Ring 2: Conic Reverse Ring (Spin reverse 9s)
+                rotate(angle2) {
                     drawCircle(
-                        color = Color(0xFFFF5722).copy(alpha = 0.3f),
-                        radius = radius * 1.05f,
-                        style = Stroke(width = 3f)
-                    )
-                    drawCircle(
-                        color = Color(0xFFFF9800),
-                        radius = 4f,
-                        center = Offset(center.x - radius * 0.7f, center.y - radius * 0.7f + offsetY)
-                    )
-                    drawCircle(
-                        color = Color(0xFFFF3D00),
-                        radius = 5f,
-                        center = Offset(center.x + radius * 0.6f, center.y - radius * 0.8f - offsetY)
+                        brush = Brush.sweepGradient(
+                            colors = priceTierColors.reversed() + priceTierColors.reversed().first(),
+                            center = center
+                        ),
+                        radius = radius - 5.dp.toPx(),
+                        style = Stroke(width = 2.dp.toPx())
                     )
                 }
 
-                badgeName?.contains("Galaxy", true) == true -> {
+                // Ring 3: Technical dashed ring (Spin 18s)
+                rotate(angle3) {
                     drawCircle(
-                        color = Color(0xFF9C27B0).copy(alpha = 0.25f),
-                        radius = radius * 1.1f,
-                        style = Stroke(width = 1f)
-                    )
-                    val rad = Math.toRadians((angle * 1.5f).toDouble())
-                    val gx = center.x + Math.cos(rad).toFloat() * radius * 1.08f
-                    val gy = center.y + Math.sin(rad).toFloat() * radius * 1.08f
-                    drawCircle(color = Color(0xFFE040FB), radius = 5f, center = Offset(gx, gy))
-                }
-
-                badgeName?.contains("Crystal", true) == true -> {
-                    drawCircle(
-                        color = Color(0xFF00E5FF).copy(alpha = 0.2f),
-                        radius = radius * 1.1f,
-                        style = Stroke(width = 1.2f)
-                    )
-                    val opacity = (glowScale - 0.8f) / 0.4f
-                    drawCircle(color = Color.White.copy(alpha = opacity), radius = 4f, center = Offset(center.x - radius * 0.9f, center.y))
-                    drawCircle(color = Color(0xFFFF80DF).copy(alpha = opacity), radius = 5f, center = Offset(center.x + radius * 0.9f, center.y))
-                }
-
-                badgeName?.contains("Neon", true) == true -> {
-                    drawCircle(
-                        color = Color(0xFFFF007F).copy(alpha = (1.5f - glowScale) * 0.3f),
-                        radius = radius * (1.0f + (glowScale - 0.8f) * 0.5f),
-                        style = Stroke(width = 2.5f)
+                        color = Color.White.copy(alpha = 0.22f),
+                        radius = radius - 10.dp.toPx(),
+                        style = Stroke(
+                            width = 1.2f.dp.toPx(),
+                            pathEffect = PathEffect.dashPathEffect(floatArrayOf(15f, 15f), 0f)
+                        )
                     )
                 }
 
-                badgeName?.contains("Legendary", true) == true -> {
+                // Ring 4: Outer flare beam sweep (Spin reverse 13s)
+                rotate(angle4) {
                     drawCircle(
-                        color = Color(0xFFFFD700).copy(alpha = 0.3f * glowScale),
-                        radius = radius * 1.08f,
-                        style = Stroke(width = 3.5f)
+                        brush = Brush.sweepGradient(
+                            colors = listOf(
+                                Color.Transparent,
+                                priceTierColors.last().copy(alpha = 0.5f),
+                                Color.Transparent,
+                                Color.Transparent,
+                                priceTierColors.first().copy(alpha = 0.5f),
+                                Color.Transparent
+                            ),
+                            center = center
+                        ),
+                        radius = radius + 6.dp.toPx(),
+                        style = Stroke(width = 1.dp.toPx())
                     )
+                }
+
+                // Ring 5: Opposing Arc sections (Alternate ease 4s)
+                rotate(angle5) {
+                    val arcRadius = radius - 15.dp.toPx()
+                    drawArc(
+                        color = priceTierColors.first().copy(alpha = 0.7f),
+                        startAngle = 0f,
+                        sweepAngle = 100f,
+                        useCenter = false,
+                        topLeft = center - Offset(arcRadius, arcRadius),
+                        size = Size(arcRadius * 2f, arcRadius * 2f),
+                        style = Stroke(width = 1.8f.dp.toPx())
+                    )
+                    drawArc(
+                        color = priceTierColors.getOrElse(2 % priceTierColors.size) { Color.Magenta }.copy(alpha = 0.7f),
+                        startAngle = 180f,
+                        sweepAngle = 100f,
+                        useCenter = false,
+                        topLeft = center - Offset(arcRadius, arcRadius),
+                        size = Size(arcRadius * 2f, arcRadius * 2f),
+                        style = Stroke(width = 1.8f.dp.toPx())
+                    )
+                }
+
+                // 3. ORBITAL FLYING SPARKS (6 sparks in clockwise and counter-clockwise rotation)
+                val sparkColors = listOf(
+                    priceTierColors.getOrElse(0) { Color.Red },
+                    priceTierColors.getOrElse(1 % priceTierColors.size) { Color.Cyan },
+                    priceTierColors.getOrElse(2 % priceTierColors.size) { Color.Magenta },
+                    priceTierColors.getOrElse(3 % priceTierColors.size) { Color.Yellow },
+                    priceTierColors.getOrElse(4 % priceTierColors.size) { Color.Green },
+                    priceTierColors.getOrElse(5 % priceTierColors.size) { Color.LightGray }
+                )
+                val sparkAngles = listOf(
+                    (now % 4000).toFloat() / 4000f * 360f,
+                    -(now % 6000).toFloat() / 6000f * 360f,
+                    ((now + 2000) % 5000).toFloat() / 5000f * 360f,
+                    -((now + 3000) % 8000).toFloat() / 8000f * 360f,
+                    ((now + 1000) % 7000).toFloat() / 7000f * 360f,
+                    -((now + 4000) % 9500).toFloat() / 9500f * 360f
+                )
+
+                for (idx in 0 until 6) {
+                    val sa = Math.toRadians(sparkAngles[idx].toDouble())
+                    val sx = center.x + Math.cos(sa).toFloat() * (radius * 1.15f)
+                    val sy = center.y + Math.sin(sa).toFloat() * (radius * 1.15f)
+                    val scolor = sparkColors[idx]
+                    
+                    drawCircle(
+                        color = scolor.copy(alpha = 0.45f),
+                        radius = 4.dp.toPx(),
+                        center = Offset(sx, sy)
+                    )
+                    drawCircle(
+                        color = Color.White,
+                        radius = 1.8f.dp.toPx(),
+                        center = Offset(sx, sy)
+                    )
+                }
+
+                // 4. FLOATING PROCEDURAL AMBIENT COSMIC DUST
+                for (idx in 0 until 20) {
+                    val seed = idx * 100L
+                    val rSeed = java.util.Random(seed)
+                    val distFactor = rSeed.nextFloat() * 0.9f + 0.1f
+                    val radiusOrbit = radius * 1.25f * distFactor
+                    
+                    val rSpeed = (rSeed.nextFloat() * 0.4f + 0.1f) * (if (idx % 2 == 0) 1 else -1)
+                    val baseAngle = rSeed.nextFloat() * 360f
+                    
+                    val currentAngle = baseAngle + (now % 30000).toFloat() / 30000f * 360f * rSpeed
+                    val rad = Math.toRadians(currentAngle.toDouble())
+                    val px = center.x + Math.cos(rad).toFloat() * radiusOrbit
+                    val py = center.y + Math.sin(rad).toFloat() * radiusOrbit
+                    
+                    val pColor = priceTierColors[idx % priceTierColors.size].copy(alpha = rSeed.nextFloat() * 0.4f + 0.15f)
+                    val pSize = (rSeed.nextFloat() * 1.5f + 0.5f).dp.toPx()
+                    
+                    drawCircle(
+                        color = pColor,
+                        radius = pSize,
+                        center = Offset(px, py)
+                    )
+                }
+
+                // 5. REGULAR DETERMINISTIC SPARK EXPLOSIONS ALONG THE RING
+                val explosionInterval = 850L
+                val currentEpisode = now / explosionInterval
+                val progress = (now % explosionInterval).toFloat() / explosionInterval.toFloat()
+
+                val expIdSeed = currentEpisode * 12345L
+                val expRandom = java.util.Random(expIdSeed)
+
+                val expAngle = expRandom.nextFloat() * 360f
+                val expRad = Math.toRadians(expAngle.toDouble())
+                val expX = center.x + Math.cos(expRad).toFloat() * radius
+                val expY = center.y + Math.sin(expRad).toFloat() * radius
+                val expColor = priceTierColors[expRandom.nextInt(priceTierColors.size)]
+
+                if (progress < 0.5f) {
+                    val flashRadius = 14.dp.toPx() * (1f - progress * 2f)
+                    drawCircle(
+                        brush = Brush.radialGradient(
+                            colors = listOf(expColor.copy(alpha = 0.5f * (1f - progress * 2f)), Color.Transparent),
+                            center = Offset(expX, expY),
+                            radius = flashRadius
+                        ),
+                        radius = flashRadius,
+                        center = Offset(expX, expY)
+                    )
+                }
+
+                val sparkCount = 10
+                for (pIdx in 0 until sparkCount) {
+                    val pAngle = (pIdx.toFloat() / sparkCount) * (2 * Math.PI) + expRandom.nextFloat() * 0.4f
+                    val pSpeed = 12f + expRandom.nextFloat() * 25f
+                    val distance = pSpeed * progress * 3.5f
+                    
+                    val px = expX + Math.cos(pAngle).toFloat() * distance
+                    val py = expY + Math.sin(pAngle).toFloat() * distance
+                    
+                    val pLife = 1f - progress
+                    if (pLife > 0f) {
+                        drawCircle(
+                            color = expColor.copy(alpha = pLife),
+                            radius = 1.5.dp.toPx() * pLife,
+                            center = Offset(px, py)
+                        )
+                    }
                 }
             }
         }
 
-        content()
+        // Apply floating animation and diagonal metallic lens sweep shine to the clipped avatar picture
+        Box(
+            modifier = Modifier
+                .graphicsLayer {
+                    translationY = if (priceTierColors != null) floatyOffset.dp.toPx() else 0f
+                }
+                .clip(CircleShape)
+                .drawWithCache {
+                    onDrawWithContent {
+                        drawContent() // First draw child preset avatar
+                        
+                        if (priceTierColors != null) {
+                            // Lay beautiful diagonal shimmering gloss on top of the circle content
+                            val w = size.width
+                            val h = size.height
+                            val startX = w * shineProgress
+                            val endX = startX + w * 0.4f
+                            
+                            drawRect(
+                                brush = Brush.linearGradient(
+                                    colors = listOf(
+                                        Color.Transparent,
+                                        Color.White.copy(alpha = 0.12f),
+                                        Color.White.copy(alpha = 0.45f),
+                                        Color.White.copy(alpha = 0.12f),
+                                        Color.Transparent
+                                    ),
+                                    start = Offset(startX, 0f),
+                                    end = Offset(endX, h)
+                                ),
+                                blendMode = BlendMode.Overlay
+                            )
+                        }
+                    }
+                },
+            contentAlignment = Alignment.Center
+        ) {
+            content()
+        }
     }
 }
 
@@ -2041,104 +2465,138 @@ fun getTranslatedText(tag: String, lang: String): String {
             "FR" to "Mon Compte & Profil",
             "EN" to "My Account & Profile",
             "ES" to "Mi Cuenta y Perfil",
-            "DE" to "Mein Konto & Profil"
+            "DE" to "Mein Konto & Profil",
+            "ZH" to "我的账户与个人资料",
+            "HI" to "मेरा खाता और प्रोफ़ाइल"
         ),
         "settings_heading" to mapOf(
             "FR" to "Paramètres de l'application ⚙️",
             "EN" to "Application Settings ⚙️",
             "ES" to "Ajustes de la Aplicación ⚙️",
-            "DE" to "Anwendungseinstellungen ⚙️"
+            "DE" to "Anwendungseinstellungen ⚙️",
+            "ZH" to "应用程序设置 ⚙️",
+            "HI" to "एप्लिकेशन सेटिंग्स ⚙️"
         ),
         "notification_title" to mapOf(
             "FR" to "Activer les Notifications",
             "EN" to "Enable Notifications",
             "ES" to "Habilitar Notificaciones",
-            "DE" to "Benachrichtigungen Aktivieren"
+            "DE" to "Benachrichtigungen Aktivieren",
+            "ZH" to "启用通知",
+            "HI" to "सूचनाएं सक्षम करें"
         ),
         "notification_desc" to mapOf(
             "FR" to "Rappels quotidiens d'agenda et bilan de vie émotionnel",
             "EN" to "Daily calendar reminders and emotional review updates",
             "ES" to "Recordatorios diarios de agenda y salud de ánimo",
-            "DE" to "Tägliche Kalendererinnerungen und emotionale Berichte"
+            "DE" to "Tägliche Kalendererinnerungen und emotionale Berichte",
+            "ZH" to "每日日程提醒和情绪生活评估",
+            "HI" to "दैनिक कैलेंडर अनुस्मारक और भावनात्मक जीवन समीक्षा"
         ),
         "sound_title" to mapOf(
             "FR" to "Générateur Audio & Effets Sonores",
             "EN" to "Audio Synthesis & Sound Effects",
             "ES" to "Efectos de Sonido y Audio",
-            "DE" to "Audio-Synthese & Soundeffekte"
+            "DE" to "Audio-Synthese & Soundeffekte",
+            "ZH" to "音频发生器和音效",
+            "HI" to "ऑडियो सिंथेसाइज़र और ध्वनि प्रभाव"
         ),
         "sound_desc" to mapOf(
             "FR" to "Bips synthétiseurs tactiques d'échecs, trivia et boutique",
             "EN" to "Synthesizer sound beeps for trivia tests, chess moves, and shop transactions",
             "ES" to "Sonidos del sintetizador para ajedrez, trivia y tienda",
-            "DE" to "Synthesizer-Signaltöne für Schachzüge, Trivia und Shop"
+            "DE" to "Synthesizer-Signaltöne für Schachzüge, Trivia und Shop",
+            "ZH" to "用于国际象棋、问答游戏和商店的合成器提示音",
+            "HI" to "शतरंज, सामान्य ज्ञान परीक्षा और स्टोर के लिए सिंथेसाइज़र बीप"
         ),
         "haptic_title" to mapOf(
             "FR" to "Retour Haptique",
             "EN" to "Haptic Feedback",
             "ES" to "Comentarios Hápticos",
-            "DE" to "Haptisches Feedback"
+            "DE" to "Haptisches Feedback",
+            "ZH" to "触觉反馈",
+            "HI" to "हैप्टिक फीडबैक"
         ),
         "haptic_desc" to mapOf(
             "FR" to "Vibrations tactiles d'immersion mécanique",
             "EN" to "Tactile controller vibrations for physical immersive feel",
             "ES" to "Vibraciones táctiles para una sensación inmersiva",
-            "DE" to "Taktile Vibrationen für verbessertes physisches Feedback"
+            "DE" to "Taktile Vibrationen für verbessertes physisches Feedback",
+            "ZH" to "机械沉浸式触感震动",
+            "HI" to "शारीरिक विसर्जन महसूस करने के लिए स्पर्शनीय कंपन"
         ),
         "privacy_title" to mapOf(
             "FR" to "Compte Privé",
             "EN" to "Private Account",
             "ES" to "Cuenta Privada",
-            "DE" to "Privates Konto"
+            "DE" to "Privates Konto",
+            "ZH" to "私有账户",
+            "HI" to "निजी खाता"
         ),
         "privacy_desc" to mapOf(
             "FR" to "Masquer votre ELO, vos badges et l'historique de posts dans le fil social",
             "EN" to "Hide your ELO rating, collected badges, and posts from the direct social stream",
             "ES" to "Ocultar su calificación ELO, insignias y publicaciones de la red social",
-            "DE" to "Verberge ELO-Wertung, Abzeichen und Beiträge aus der sozialen Timeline"
+            "DE" to "Verberge ELO-Wertung, Abzeichen und Beiträge aus der sozialen Timeline",
+            "ZH" to "隐藏您的ELO积分、收集的徽章以及社交动态中的发布历史",
+            "HI" to "सोशल फीड में अपना ELO रेटिंग, बैज और पोस्ट इतिहास छुपाएं"
         ),
         "deep_dark_title" to mapOf(
             "FR" to "Thème Sombre Spatial Réel",
             "EN" to "Deep Realistic Space Dark Theme",
             "ES" to "Tema Oscuro Espacial Real",
-            "DE" to "Deep Space Dunkles Design"
+            "DE" to "Deep Space Dunkles Design",
+            "ZH" to "真实太空深色主题",
+            "HI" to "गहन यथार्थवादी अंतरिक्ष डार्क थीम"
         ),
         "deep_dark_desc" to mapOf(
             "FR" to "Économie d'énergie OLED absolue avec contrastes stellaires",
             "EN" to "Pure AMOLED black background to power save battery with stars color contrast",
             "ES" to "Ahorro de energía OLED absoluto con alto contraste estelar",
-            "DE" to "Absolute OLED-Energieeinsparung mit sternenklaren Kontrasten"
+            "DE" to "Absolute OLED-Energieeinsparung mit sternenklaren Kontrasten",
+            "ZH" to "纯净的AMOLED黑色背景，极致省电与星空格调",
+            "HI" to "तारों के रंग विपरीत के साथ शुद्ध AMOLED काला पृष्ठभूमि"
         ),
         "theme_option_title" to mapOf(
             "FR" to "Sélecteur de Thème Visuel 🎨",
             "EN" to "Visual Theme Selector 🎨",
             "ES" to "Selector de Tema Visual 🎨",
-            "DE" to "Design-Auswahl 🎨"
+            "DE" to "Design-Auswahl 🎨",
+            "ZH" to "视觉主题选择器 🎨",
+            "HI" to "दृश्य थीम चयनकर्ता 🎨"
         ),
         "theme_dark" to mapOf(
             "FR" to "Sombre",
             "EN" to "Dark",
             "ES" to "Oscuro",
-            "DE" to "Dunkel"
+            "DE" to "Dunkel",
+            "ZH" to "深色",
+            "HI" to "डार्क"
         ),
         "theme_light" to mapOf(
             "FR" to "Clair",
             "EN" to "Light",
             "ES" to "Claro",
-            "DE" to "Hell"
+            "DE" to "Hell",
+            "ZH" to "浅色",
+            "HI" to "लाइट"
         ),
         "theme_system" to mapOf(
             "FR" to "Système",
             "EN" to "System",
             "ES" to "Sistema",
-            "DE" to "System"
+            "DE" to "System",
+            "ZH" to "系统默认",
+            "HI" to "सिस्टम"
         ),
         "lang_option_title" to mapOf(
             "FR" to "Paramètre de Langue de l'App 🌐",
             "EN" to "App Language Preference 🌐",
             "ES" to "Preferencia de Idioma 🌐",
-            "DE" to "App-Spracheinstellung 🌐"
+            "DE" to "App-Spracheinstellung 🌐",
+            "ZH" to "应用语言设置 🌐",
+            "HI" to "ऐप भाषा प्राथमिकता 🌐"
         )
     )
-    return translations[tag]?.get(lang) ?: tag
+    return translations[tag]?.get(lang) ?: translations[tag]?.get("EN") ?: tag
 }

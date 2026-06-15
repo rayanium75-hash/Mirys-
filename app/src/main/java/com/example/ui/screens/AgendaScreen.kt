@@ -3,8 +3,8 @@ package com.example.ui.screens
 import androidx.compose.animation.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Book
-import androidx.compose.material.icons.filled.ListAlt
+import androidx.compose.material.icons.outlined.Book
+import androidx.compose.material.icons.outlined.ListAlt
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -46,7 +46,7 @@ fun AgendaScreen(
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     Icon(
-                        imageVector = Icons.Default.Book,
+                        imageVector = Icons.Outlined.Book,
                         contentDescription = null,
                         modifier = Modifier.size(18.dp)
                     )
@@ -70,7 +70,7 @@ fun AgendaScreen(
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     Icon(
-                        imageVector = Icons.Default.ListAlt,
+                        imageVector = Icons.Outlined.ListAlt,
                         contentDescription = null,
                         modifier = Modifier.size(18.dp)
                     )

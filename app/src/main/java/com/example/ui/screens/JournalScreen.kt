@@ -11,6 +11,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -70,7 +71,7 @@ fun JournalScreen(
                 )
             ) {
                 Icon(
-                    imageVector = if (isFormVisible) Icons.Default.ExpandLess else Icons.Default.Add,
+                    imageVector = if (isFormVisible) Icons.Outlined.ExpandLess else Icons.Outlined.Add,
                     contentDescription = null
                 )
                 Spacer(modifier = Modifier.width(8.dp))
@@ -173,11 +174,11 @@ fun JournalScreen(
                                 ) {
                                     Icon(
                                         imageVector = when (emoji) {
-                                            "💖" -> Icons.Default.SentimentVerySatisfied
-                                            "😊" -> Icons.Default.SentimentSatisfied
-                                            "😐" -> Icons.Default.SentimentNeutral
-                                            "😔" -> Icons.Default.SentimentDissatisfied
-                                            else -> Icons.Default.SentimentVeryDissatisfied
+                                            "💖" -> Icons.Outlined.SentimentVerySatisfied
+                                            "😊" -> Icons.Outlined.SentimentSatisfied
+                                            "😐" -> Icons.Outlined.SentimentNeutral
+                                            "😔" -> Icons.Outlined.SentimentDissatisfied
+                                            else -> Icons.Outlined.SentimentVeryDissatisfied
                                         },
                                         contentDescription = label,
                                         tint = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
@@ -263,7 +264,7 @@ fun JournalScreen(
                     verticalArrangement = Arrangement.Center
                 ) {
                     Icon(
-                        imageVector = Icons.Default.Book,
+                        imageVector = Icons.Outlined.Book,
                         contentDescription = null,
                         tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.2f),
                         modifier = Modifier.size(60.dp)
@@ -332,11 +333,11 @@ fun JournalCard(
                 ) {
                     Icon(
                         imageVector = when (entry.moodEmoji) {
-                            "💖" -> Icons.Default.SentimentVerySatisfied
-                            "😊" -> Icons.Default.SentimentSatisfied
-                            "😐" -> Icons.Default.SentimentNeutral
-                            "😔" -> Icons.Default.SentimentDissatisfied
-                            else -> Icons.Default.SentimentVeryDissatisfied
+                            "💖" -> Icons.Outlined.SentimentVerySatisfied
+                            "😊" -> Icons.Outlined.SentimentSatisfied
+                            "😐" -> Icons.Outlined.SentimentNeutral
+                            "😔" -> Icons.Outlined.SentimentDissatisfied
+                            else -> Icons.Outlined.SentimentVeryDissatisfied
                         },
                         contentDescription = "Humeur",
                         tint = when (entry.moodEmoji) {
@@ -373,7 +374,7 @@ fun JournalCard(
                     modifier = Modifier.testTag("delete_journal_${entry.id}")
                 ) {
                     Icon(
-                        imageVector = Icons.Default.Delete,
+                        imageVector = Icons.Outlined.Delete,
                         contentDescription = "Effacer l'entrée",
                         tint = MaterialTheme.colorScheme.error.copy(alpha = 0.8f),
                         modifier = Modifier.size(18.dp)
@@ -381,7 +382,7 @@ fun JournalCard(
                 }
 
                 Icon(
-                    imageVector = if (isExpanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                    imageVector = if (isExpanded) Icons.Outlined.ExpandLess else Icons.Outlined.ExpandMore,
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
                     modifier = Modifier.size(20.dp)

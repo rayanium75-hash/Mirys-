@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -25,16 +26,21 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.ui.screens.DashboardScreen
 import com.example.ui.screens.FeedSocialScreen
 import com.example.ui.screens.GamesScreen
+import com.example.ui.screens.TalkScreen
 import com.example.ui.screens.AgendaScreen
 import com.example.ui.screens.ShopScreen
-import com.example.ui.screens.TalkScreen
+import com.example.ui.screens.ProfileScreen
 import com.example.ui.theme.MyApplicationTheme
 import com.example.ui.viewmodel.AuraViewModel
 import com.example.ui.components.BrandLogo
 import com.example.ui.components.UserProfileSettingsDialog
+import com.example.ui.components.PremiumHubDialog
 import com.example.ui.components.RenderPresetAvatar
+import com.example.ui.components.ProfileVfxWrapper
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.clickable
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import androidx.compose.animation.core.*
@@ -45,6 +51,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.TileMode
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.runtime.saveable.rememberSaveable
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -70,7 +77,7 @@ fun MainAppContainer(
     viewModel: AuraViewModel,
     modifier: Modifier = Modifier
 ) {
-    var showSplash by remember { mutableStateOf(true) }
+    var showSplash by rememberSaveable { mutableStateOf(true) }
 
     if (showSplash) {
         SplashScreenComponent(onFinish = { showSplash = false })
@@ -78,6 +85,8 @@ fun MainAppContainer(
         // Dialog for clear confirmation
         var showResetDialog by remember { mutableStateOf(false) }
         var showProfileDialog by remember { mutableStateOf(false) }
+        var showGamesOverlay by remember { mutableStateOf(false) }
+        var showPremiumHubDialog by remember { mutableStateOf(false) }
 
         Scaffold(
             modifier = modifier
@@ -87,7 +96,9 @@ fun MainAppContainer(
                 CustomTopBar(
                     viewModel = viewModel,
                     onResetClick = { showResetDialog = true },
-                    onProfileClick = { showProfileDialog = true }
+                    onProfileClick = { viewModel.selectTab("profile") },
+                    onGamesClick = { showGamesOverlay = true },
+                    onPremiumHubClick = { showPremiumHubDialog = true }
                 )
             },
             bottomBar = {
@@ -111,11 +122,6 @@ fun MainAppContainer(
                     )
                     "feed" -> FeedSocialScreen(
                         viewModel = viewModel,
-                        onNavigateToGames = { viewModel.selectTab("games") },
-                        modifier = Modifier.fillMaxSize()
-                    )
-                    "games" -> GamesScreen(
-                        viewModel = viewModel,
                         modifier = Modifier.fillMaxSize()
                     )
                     "talk" -> TalkScreen(
@@ -126,10 +132,9 @@ fun MainAppContainer(
                         viewModel = viewModel,
                         modifier = Modifier.fillMaxSize()
                     )
-                    "shop" -> ShopScreen(
+                    "profile" -> ProfileScreen(
                         viewModel = viewModel,
-                        modifier = Modifier.fillMaxSize(),
-                        onProfileClick = { showProfileDialog = true }
+                        modifier = Modifier.fillMaxSize()
                     )
                 }
             }
@@ -159,11 +164,52 @@ fun MainAppContainer(
             )
         }
 
+        if (showPremiumHubDialog) {
+            PremiumHubDialog(
+                viewModel = viewModel,
+                onDismiss = { showPremiumHubDialog = false }
+            )
+        }
+
         if (showProfileDialog) {
             UserProfileSettingsDialog(
                 viewModel = viewModel,
                 onDismissRequest = { showProfileDialog = false }
             )
+        }
+
+        if (showGamesOverlay) {
+            Dialog(
+                onDismissRequest = { showGamesOverlay = false },
+                properties = DialogProperties(usePlatformDefaultWidth = false)
+            ) {
+                Surface(
+                    modifier = Modifier.fillMaxSize(),
+                    color = MaterialTheme.colorScheme.background
+                ) {
+                    Box(modifier = Modifier.fillMaxSize()) {
+                        GamesScreen(
+                            viewModel = viewModel,
+                            modifier = Modifier.fillMaxSize()
+                        )
+                        IconButton(
+                            onClick = { showGamesOverlay = false },
+                            modifier = Modifier
+                                .align(Alignment.TopEnd)
+                                .padding(16.dp)
+                                .statusBarsPadding()
+                                .background(Color.Black.copy(alpha = 0.6f), CircleShape)
+                                .testTag("close_games_overlay")
+                        ) {
+                            Icon(
+                                imageVector = Icons.Outlined.Close,
+                                contentDescription = "Fermer les jeux",
+                                tint = Color.White
+                            )
+                        }
+                    }
+                }
+            }
         }
     }
 }
@@ -200,12 +246,45 @@ fun SplashScreenComponent(onFinish: () -> Unit) {
         label = "particleDrift"
     )
 
+    // Hologram Scan sweep animation
+    val scanLineY by infiniteTransition.animateFloat(
+        initialValue = -0.1f,
+        targetValue = 1.1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(2800, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "scanLine"
+    )
+
+    // Shooting star animation progress
+    val shootingStarProgress by infiniteTransition.animateFloat(
+        initialValue = -0.3f,
+        targetValue = 1.4f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(4000, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "shootingStar"
+    )
+
+    // Core progression over 5 seconds (5000ms)
+    val systemLoadProgress = remember { Animatable(0f) }
+
     LaunchedEffect(Unit) {
+        // Core loading speed
+        launch {
+            systemLoadProgress.animateTo(
+                targetValue = 1f,
+                animationSpec = tween(5000, easing = LinearEasing)
+            )
+        }
+
         // Logo bounce animation
         launch {
             scale.animateTo(
                 targetValue = 1.15f,
-                animationSpec = tween(1000, easing = FastOutSlowInEasing)
+                animationSpec = tween(1100, easing = FastOutSlowInEasing)
             )
             scale.animateTo(
                 targetValue = 1.0f,
@@ -217,28 +296,38 @@ fun SplashScreenComponent(onFinish: () -> Unit) {
         }
         
         launch {
-            alpha.animateTo(1f, animationSpec = tween(900))
+            alpha.animateTo(1f, animationSpec = tween(1000))
         }
 
         // Title text animation after slight delay
         launch {
-            delay(300)
-            textAlpha.animateTo(1f, animationSpec = tween(900))
+            delay(400)
+            textAlpha.animateTo(1f, animationSpec = tween(1100))
         }
         launch {
-            delay(300)
+            delay(400)
             textOffset.animateTo(0f, animationSpec = spring(stiffness = Spring.StiffnessLow))
         }
 
         // Author credits fade in elegantly after
         launch {
-            delay(1000)
-            authorAlpha.animateTo(1f, animationSpec = tween(1000))
+            delay(1500)
+            authorAlpha.animateTo(1f, animationSpec = tween(1200))
         }
 
-        // Splash screen is now requested to be exactly 4 seconds (4000ms)
-        delay(4000)
+        // Splash screen is now requested to be exactly 5 seconds (5000ms)
+        delay(5000)
         onFinish()
+    }
+
+    val loadPercent = (systemLoadProgress.value * 100).toInt().coerceIn(0, 100)
+    val statusText = when {
+        systemLoadProgress.value < 0.16f -> "INITIALISATION DE MIRYS CORE OS v3.0..."
+        systemLoadProgress.value < 0.35f -> "CHARGEMENT DE LA MATRICE NEURALE & INTELLIGENCE..."
+        systemLoadProgress.value < 0.55f -> "SYNCHRONISATION DES CLASSEMENTS ET DES QUIZ [OK]"
+        systemLoadProgress.value < 0.75f -> "MIGRATION DE LA COOPÉRATIVE DE SOUS-RÉGION..."
+        systemLoadProgress.value < 0.90f -> "COMMUNAUTÉ, BOUTIQUE ET PROFILS INITIALISÉS"
+        else -> "MIRYS EST PRÊT ! CONNEXION AU PROTOCOLE DE TOURNOI..."
     }
     
     Box(
@@ -247,46 +336,83 @@ fun SplashScreenComponent(onFinish: () -> Unit) {
             .background(Color(0xFF03070E)), // Ultra-dark elegant space background
         contentAlignment = Alignment.Center
     ) {
-        // --- BACKGROUND VFX: Nebula Glowing Dust and Stars ---
+        // --- BACKGROUND VFX: Nebula Glowing Dust, Shooting Stars and Cyber-Grid ---
         Canvas(modifier = Modifier.fillMaxSize()) {
             val width = size.width
             val height = size.height
 
-            // 1. Draw dynamic organic background nebula glows
+            // 1. Draw dynamic organic background nebula glows (Cyan & Deep Purple blend)
             val radialGlow1 = Brush.radialGradient(
-                colors = listOf(Color(0x331AA3FF), Color(0x000A1626)),
-                center = Offset(width * 0.4f, height * 0.35f),
-                radius = width * (0.6f + 0.1f * pulseGlow)
+                colors = listOf(Color(0x3B1AA3FF), Color(0x000A1626)),
+                center = Offset(width * 0.3f, height * 0.3f),
+                radius = width * (0.7f + 0.12f * pulseGlow)
             )
             val radialGlow2 = Brush.radialGradient(
-                colors = listOf(Color(0x223DF5FF), Color(0x00060B13)),
-                center = Offset(width * 0.7f, height * 0.65f),
-                radius = width * (0.5f + 0.08f * (1.0f - pulseGlow))
+                colors = listOf(Color(0x2E6B21A8), Color(0x00000000)), // Sci-fi Purple
+                center = Offset(width * 0.75f, height * 0.65f),
+                radius = width * (0.6f + 0.10f * (1.0f - pulseGlow))
+            )
+            val radialGlow3 = Brush.radialGradient(
+                colors = listOf(Color(0x223DF5FF), Color(0x00000000)), // Cyan Core
+                center = Offset(width * 0.5f, height * 0.45f),
+                radius = width * (0.45f + 0.05f * pulseGlow)
             )
             drawRect(radialGlow1)
             drawRect(radialGlow2)
+            drawRect(radialGlow3)
 
-            // 2. Continuous ambient floating stellar star particles
+            // 2. 3D Cybernetic Perspective Grid lines at base
+            val horizonY = height * 0.55f
+            val gridColor = Color(0xFF13223A).copy(alpha = 0.3f * pulseGlow)
+            val gridHighlightColor = Color(0xFF22D3EE).copy(alpha = 0.15f * pulseGlow)
+
+            // Horizontal perspective lines
+            for (i in 0..14) {
+                val ratio = i / 14f
+                val y = horizonY + (height - horizonY) * (ratio * ratio)
+                drawLine(
+                    color = if (i % 4 == 0) gridHighlightColor else gridColor,
+                    start = Offset(0f, y),
+                    end = Offset(width, y),
+                    strokeWidth = if (i % 4 == 0) 1.5f else 0.8f
+                )
+            }
+
+            // Radial perspective lines from vanish point on horizon
+            val vanishX = width * 0.5f
+            val vanishY = horizonY
+            val verticalLinesCount = 16
+            for (i in 0..verticalLinesCount) {
+                val ratio = i.toFloat() / verticalLinesCount.toFloat()
+                val bottomX = width * (-0.4f + ratio * 1.8f)
+                drawLine(
+                    color = gridColor,
+                    start = Offset(vanishX, vanishY),
+                    end = Offset(bottomX, height),
+                    strokeWidth = 0.9f
+                )
+            }
+
+            // 3. Continuous ambient floating stellar star particles
             val baseStars = listOf(
                 Offset(0.12f, 0.20f) to 3.5f,
-                Offset(0.85f, 0.15f) to 5f,
-                Offset(0.28f, 0.72f) to 4f,
+                Offset(0.85f, 0.15f) to 5.0f,
+                Offset(0.28f, 0.72f) to 4.0f,
                 Offset(0.74f, 0.82f) to 4.5f,
-                Offset(0.48f, 0.08f) to 6f,
-                Offset(0.18f, 0.55f) to 3f,
+                Offset(0.48f, 0.08f) to 6.0f,
+                Offset(0.18f, 0.55f) to 3.0f,
                 Offset(0.82f, 0.48f) to 5.5f,
-                Offset(0.50f, 0.90f) to 4f,
+                Offset(0.50f, 0.90f) to 4.0f,
                 Offset(0.35f, 0.38f) to 3.2f,
-                Offset(0.65f, 0.28f) to 4.2f
+                Offset(0.65f, 0.28f) to 4.2f,
+                Offset(0.15f, 0.85f) to 2.8f,
+                Offset(0.88f, 0.75f) to 3.6f
             )
 
             baseStars.forEach { (pos, sizeVal) ->
-                // Drift calculations with wrapping so particles slowly rise and reset
                 val rawY = pos.y - particleDrift
                 val finalY = if (rawY < 0f) rawY + 1.0f else rawY
                 val screenPos = Offset(pos.x * width, finalY * height)
-                
-                // Pulsate transparency based on drift position
                 val pulseAlpha = 0.3f + 0.7f * kotlin.math.sin(finalY * Math.PI.toFloat() * 2f).coerceIn(0f, 1f)
 
                 drawCircle(
@@ -295,11 +421,35 @@ fun SplashScreenComponent(onFinish: () -> Unit) {
                     center = screenPos
                 )
                 
-                // Star glow aura
                 drawCircle(
                     color = Color(0xFF80E5FF).copy(alpha = pulseAlpha * 0.25f),
                     radius = sizeVal * 2.8f,
                     center = screenPos
+                )
+            }
+
+            // 4. Diagonal Meteor Sweep
+            if (shootingStarProgress in 0f..1f) {
+                val sStart = Offset(width * 1.1f, height * -0.1f)
+                val sEnd = Offset(width * -0.2f, height * 0.8f)
+                val currentX = sStart.x + (sEnd.x - sStart.x) * shootingStarProgress
+                val currentY = sStart.y + (sEnd.y - sStart.y) * shootingStarProgress
+
+                val hyp = kotlin.math.hypot(sEnd.x - sStart.x, sEnd.y - sStart.y)
+                val tLen = 140f
+                val dx = (sEnd.x - sStart.x) / hyp * tLen
+                val dy = (sEnd.y - sStart.y) / hyp * tLen
+
+                drawLine(
+                    brush = Brush.linearGradient(
+                        colors = listOf(Color.Transparent, Color(0xFF22D3EE), Color.White),
+                        start = Offset(currentX - dx, currentY - dy),
+                        end = Offset(currentX, currentY)
+                    ),
+                    start = Offset(currentX - dx, currentY - dy),
+                    end = Offset(currentX, currentY),
+                    strokeWidth = 2.5f,
+                    cap = androidx.compose.ui.graphics.StrokeCap.Round
                 )
             }
         }
@@ -322,93 +472,217 @@ fun SplashScreenComponent(onFinish: () -> Unit) {
                 // Aura ambient glowing base circle behind logo
                 Box(
                     modifier = Modifier
-                        .size(160.dp)
+                        .size(175.dp)
                         .background(
                             Brush.radialGradient(
                                 colors = listOf(
-                                    Color(0xFF1AA3FF).copy(alpha = 0.35f * pulseGlow),
+                                    Color(0xFF1AA3FF).copy(alpha = 0.40f * pulseGlow),
+                                    Color(0xFF7C3AED).copy(alpha = 0.25f * (1.0f - pulseGlow)),
                                     Color.Transparent
                                 )
                             )
                         )
                 )
 
-                BrandLogo(size = 135.dp)
+                Box(modifier = Modifier.size(135.dp)) {
+                    BrandLogo(size = 135.dp)
+
+                    // Laser Scanning Hologram Line Over Logo
+                    Canvas(modifier = Modifier.fillMaxSize()) {
+                        val side = size.width
+                        val glowLineY = side * scanLineY
+                        if (glowLineY in 0f..side) {
+                            // Bright horizontal laser gradient trace
+                            drawRect(
+                                brush = Brush.verticalGradient(
+                                    colors = listOf(
+                                        Color.Transparent,
+                                        Color(0xFF3DF5FF).copy(alpha = 0.35f),
+                                        Color.White.copy(alpha = 0.75f),
+                                        Color(0xFF3DF5FF).copy(alpha = 0.35f),
+                                        Color.Transparent
+                                    ),
+                                    startY = glowLineY - 10f,
+                                    endY = glowLineY + 10f
+                                ),
+                                topLeft = Offset(0f, glowLineY - 10f),
+                                size = androidx.compose.ui.geometry.Size(side, 20f)
+                            )
+                            // Core scanning light beam
+                            drawLine(
+                                color = Color.White,
+                                start = Offset(0f, glowLineY),
+                                end = Offset(side, glowLineY),
+                                strokeWidth = 2f
+                            )
+                        }
+                    }
+                }
             }
             
-            Spacer(modifier = Modifier.height(32.dp))
+            Spacer(modifier = Modifier.height(28.dp))
             
             // Styled animated Title with shimmering gradient
             Text(
                 text = "Mirys",
-                fontWeight = FontWeight.ExtraBold,
-                fontSize = 44.sp,
+                fontWeight = FontWeight.Black,
+                fontSize = 46.sp,
                 style = TextStyle(
                     brush = Brush.linearGradient(
                         colors = listOf(
                             Color(0xFFFFFFFF),
-                            Color(0xFF3DF5FF),
-                            Color(0xFF1AA3FF),
-                            Color(0xFF0073E6)
+                            Color(0xFF22D3EE),
+                            Color(0xFF0284C7),
+                            Color(0xFFC084FC),
+                            Color(0xFFFFFFFF)
                         ),
                         tileMode = TileMode.Clamp
                     )
                 ),
-                letterSpacing = (-1).sp,
+                letterSpacing = (-1.5).sp,
                 modifier = Modifier
                     .graphicsLayer {
                         this.alpha = textAlpha.value
                         this.translationY = textOffset.value
                     }
             )
-            
-            Spacer(modifier = Modifier.height(18.dp))
+
+            // Monospace high-tech slogan
+            Text(
+                text = "FOCUS • STRATÉGIE • INTELLIGENCE",
+                fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
+                fontWeight = FontWeight.Bold,
+                fontSize = 9.5.sp,
+                color = Color(0xFF67E8F9),
+                letterSpacing = 2.5.sp,
+                modifier = Modifier
+                    .padding(top = 4.dp, bottom = 22.dp)
+                    .graphicsLayer {
+                        this.alpha = textAlpha.value * 0.85f
+                        this.translationY = textOffset.value * 1.3f
+                    }
+            )
             
             // Elegant framed Author Card with dual-gradient glow
             Surface(
-                color = Color(0xFF091424).copy(alpha = 0.75f),
+                color = Color(0xFF091424).copy(alpha = 0.82f),
                 border = BorderStroke(
                     1.2.dp, 
                     Brush.horizontalGradient(
                         colors = listOf(
-                            Color(0xFF1AA3FF).copy(alpha = 0.35f),
-                            Color(0xFF3DF5FF).copy(alpha = 0.12f),
-                            Color(0xFF1AA3FF).copy(alpha = 0.35f)
+                            Color(0xFF1AA3FF).copy(alpha = 0.45f),
+                            Color(0xFF9333EA).copy(alpha = 0.20f),
+                            Color(0xFF1AA3FF).copy(alpha = 0.45f)
                         )
                     )
                 ),
-                shape = RoundedCornerShape(16.dp),
-                tonalElevation = 10.dp,
+                shape = RoundedCornerShape(12.dp),
+                tonalElevation = 12.dp,
                 modifier = Modifier
                     .graphicsLayer {
                         this.alpha = authorAlpha.value
-                        scaleX = 0.9f + (authorAlpha.value * 0.1f)
-                        scaleY = 0.9f + (authorAlpha.value * 0.1f)
+                        scaleX = 0.94f + (authorAlpha.value * 0.06f)
+                        scaleY = 0.94f + (authorAlpha.value * 0.06f)
                     }
             ) {
                 Text(
-                    text = "From rayanium68, by Alane Mentii",
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 13.sp,
+                    text = "BY ALANE MENTII • FOR RAYANIUM68",
+                    fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
+                    fontWeight = FontWeight.Black,
+                    fontSize = 11.sp,
                     color = Color(0xFF80E5FF),
-                    letterSpacing = 0.8.sp,
-                    modifier = Modifier.padding(horizontal = 22.dp, vertical = 11.dp)
+                    letterSpacing = 1.2.sp,
+                    modifier = Modifier.padding(horizontal = 18.dp, vertical = 9.dp)
                 )
             }
             
-            Spacer(modifier = Modifier.height(48.dp))
+            Spacer(modifier = Modifier.height(42.dp))
             
-            // Elegant micro progress bar or ring
-            Box(
+            // High-Tech Cyber Segments Loading Progress HUD
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
                 modifier = Modifier
+                    .fillMaxWidth(0.88f)
                     .graphicsLayer {
                         this.alpha = textAlpha.value
                     }
             ) {
-                CircularProgressIndicator(
-                    modifier = Modifier.size(24.dp),
-                    color = Color(0xFF3DF5FF),
-                    strokeWidth = 2.5.dp
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 2.dp, vertical = 5.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = statusText,
+                        fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
+                        fontSize = 8.sp,
+                        color = Color(0xFF80E5FF).copy(alpha = 0.85f),
+                        fontWeight = FontWeight.Bold,
+                        maxLines = 1
+                    )
+                    Text(
+                        text = "[ $loadPercent% ]",
+                        fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
+                        fontSize = 9.5.sp,
+                        color = Color(0xFF22D3EE),
+                        fontWeight = FontWeight.Black
+                    )
+                }
+
+                // Cyber loader track
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(10.dp)
+                        .clip(RoundedCornerShape(4.dp))
+                        .background(Color(0xFF070F19))
+                        .border(1.dp, Color(0xFF1B2F49), RoundedCornerShape(4.dp))
+                        .padding(2.dp)
+                ) {
+                    Canvas(modifier = Modifier.fillMaxSize()) {
+                        val barWidth = size.width
+                        val barHeight = size.height
+                        val progressWidth = barWidth * systemLoadProgress.value
+                        
+                        // Glowing horizontal gradient load-bar
+                        drawRoundRect(
+                            brush = Brush.horizontalGradient(
+                                colors = listOf(Color(0xFF0066FF), Color(0xFF22D3EE), Color(0xFFC084FC))
+                            ),
+                            size = androidx.compose.ui.geometry.Size(progressWidth, barHeight),
+                            cornerRadius = androidx.compose.ui.geometry.CornerRadius(2f, 2f)
+                        )
+                    }
+                }
+            }
+        }
+
+        // Actionable Skip Button placed in top-right corner above other animations
+        TextButton(
+            onClick = onFinish,
+            modifier = Modifier
+                .align(Alignment.TopEnd)
+                .statusBarsPadding()
+                .padding(top = 16.dp, end = 16.dp)
+                .testTag("skip_splash_button")
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                Text(
+                    text = "Passer",
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFF80E5FF).copy(alpha = 0.8f)
+                )
+                Icon(
+                    imageVector = Icons.Outlined.ArrowForwardIos,
+                    contentDescription = "Passer",
+                    tint = Color(0xFF80E5FF).copy(alpha = 0.8f),
+                    modifier = Modifier.size(11.dp)
                 )
             }
         }
@@ -419,7 +693,9 @@ fun SplashScreenComponent(onFinish: () -> Unit) {
 fun CustomTopBar(
     viewModel: AuraViewModel,
     onResetClick: () -> Unit,
-    onProfileClick: () -> Unit
+    onProfileClick: () -> Unit,
+    onGamesClick: () -> Unit,
+    onPremiumHubClick: () -> Unit
 ) {
     Surface(
         color = MaterialTheme.colorScheme.surface,
@@ -440,26 +716,31 @@ fun CustomTopBar(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 modifier = Modifier.clickable { onProfileClick() }
             ) {
-                Box(
-                    modifier = Modifier
-                        .size(36.dp)
-                        .clip(CircleShape)
-                        .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.2f))
-                        .border(1.dp, MaterialTheme.colorScheme.primary, CircleShape),
-                    contentAlignment = Alignment.Center
+                ProfileVfxWrapper(
+                    badgeName = viewModel.equippedBadge,
+                    modifier = Modifier.size(50.dp)
                 ) {
-                    RenderPresetAvatar(
-                        preset = viewModel.profilePhotoPreset,
-                        filter = viewModel.profileFilter,
-                        brightness = viewModel.profileBrightness,
-                        contrast = viewModel.profileContrast,
-                        zoom = viewModel.profileZoom,
-                        cropX = viewModel.profileCropX,
-                        cropY = viewModel.profileCropY,
-                        username = viewModel.username,
-                        modifier = Modifier.fillMaxSize(),
-                        customUri = viewModel.customProfilePhotoUri
-                    )
+                    Box(
+                        modifier = Modifier
+                            .size(36.dp)
+                            .clip(CircleShape)
+                            .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.2f))
+                            .border(1.dp, MaterialTheme.colorScheme.primary, CircleShape),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        RenderPresetAvatar(
+                            preset = viewModel.profilePhotoPreset,
+                            filter = viewModel.profileFilter,
+                            brightness = viewModel.profileBrightness,
+                            contrast = viewModel.profileContrast,
+                            zoom = viewModel.profileZoom,
+                            cropX = viewModel.profileCropX,
+                            cropY = viewModel.profileCropY,
+                            username = viewModel.username,
+                            modifier = Modifier.fillMaxSize(),
+                            customUri = viewModel.customProfilePhotoUri
+                        )
+                    }
                 }
                 
                 Column {
@@ -483,20 +764,73 @@ fun CustomTopBar(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                if (viewModel.subscriptionTier != "Gratuit") {
+                // Premium Hub Gold Crown Button
+                val isTrial = viewModel.isFreeTrialActive
+                val premiumGlowColor = if (isTrial) Color(0xFF00FFCC) else Color(0xFFFFD700)
+                IconButton(
+                    onClick = onPremiumHubClick,
+                    modifier = Modifier
+                        .size(40.dp)
+                        .clip(CircleShape)
+                        .background(if (isTrial) Color(0xFF022C22) else Color(0xFF2E1A47))
+                        .border(
+                            width = if (isTrial) 2.dp else 1.5.dp, 
+                            brush = if (isTrial) Brush.sweepGradient(listOf(Color(0xFF00FFCC), Color(0xFF8B5CF6), Color(0xFF00FFCC))) else Brush.linearGradient(listOf(Color(0xFFFFD700), Color(0xFFFFA000))), 
+                            shape = CircleShape
+                        )
+                        .testTag("premium_hub_top_bar_btn")
+                ) {
+                    Icon(
+                        imageVector = Icons.Outlined.WorkspacePremium,
+                        contentDescription = "Club Premium Multivers",
+                        tint = premiumGlowColor,
+                        modifier = Modifier.size(22.dp)
+                    )
+                }
+
+                // Cyberpunk styled High-energy Glowing Games icon button to play!
+                IconButton(
+                    onClick = onGamesClick,
+                    modifier = Modifier
+                        .size(40.dp)
+                        .clip(CircleShape)
+                        .background(Color(0xFF0F1B2F))
+                        .border(
+                            width = 1.5.dp, 
+                            brush = Brush.linearGradient(listOf(Color(0xFF00E676), Color(0xFF00FFCC))), 
+                            shape = CircleShape
+                        )
+                        .testTag("games_top_bar_btn")
+                ) {
+                    Icon(
+                        imageVector = Icons.Outlined.SportsEsports,
+                        contentDescription = "Ouvrir les Jeux",
+                        tint = Color(0xFF00FFCC),
+                        modifier = Modifier.size(22.dp)
+                    )
+                }
+
+                if (viewModel.subscriptionTier != "Gratuit" || viewModel.isFreeTrialActive) {
                     Box(
                         modifier = Modifier
                             .clip(RoundedCornerShape(8.dp))
-                            .background(Color(0xFFFFD700).copy(alpha = 0.2f))
-                            .border(1.dp, Color(0xFFFFD700), RoundedCornerShape(8.dp))
+                            .background(
+                                if (viewModel.isFreeTrialActive) Color(0xFF00FFCC).copy(alpha = 0.2f)
+                                else Color(0xFFFFD700).copy(alpha = 0.2f)
+                            )
+                            .border(
+                                width = 1.dp, 
+                                color = if (viewModel.isFreeTrialActive) Color(0xFF00FFCC) else Color(0xFFFFD700), 
+                                shape = RoundedCornerShape(8.dp)
+                            )
                             .padding(horizontal = 6.dp, vertical = 3.dp)
                             .clickable { onProfileClick() }
                     ) {
                         Text(
-                            text = if (viewModel.subscriptionTier.contains("Pro")) "PRO" else "PREMIUM",
+                            text = if (viewModel.isFreeTrialActive) "ESSAI ⚡" else if (viewModel.subscriptionTier.contains("Pro")) "PRO ✨" else "PREMIUM 👑",
                             fontSize = 9.sp,
                             fontWeight = FontWeight.Black,
-                            color = Color(0xFFFFD700)
+                            color = if (viewModel.isFreeTrialActive) Color(0xFF00FFCC) else Color(0xFFFFD700)
                         )
                     }
                 }
@@ -506,7 +840,7 @@ fun CustomTopBar(
                     modifier = Modifier.testTag("open_profile_topbar")
                 ) {
                     Icon(
-                        imageVector = Icons.Default.AccountCircle,
+                        imageVector = Icons.Outlined.AccountCircle,
                         contentDescription = "Ouvrir votre profil",
                         tint = MaterialTheme.colorScheme.primary
                     )
@@ -517,7 +851,7 @@ fun CustomTopBar(
                     modifier = Modifier.testTag("reset_data_topbar")
                 ) {
                     Icon(
-                        imageVector = Icons.Default.DeleteForever,
+                        imageVector = Icons.Outlined.DeleteForever,
                         contentDescription = "Effacer toutes les données",
                         tint = MaterialTheme.colorScheme.error.copy(alpha = 0.7f)
                     )
@@ -544,7 +878,7 @@ fun CustomBottomBar(
             label = { Text("Mirys IA", fontSize = 10.sp, fontWeight = FontWeight.SemiBold) },
             icon = {
                 Icon(
-                    imageVector = Icons.Default.AutoAwesome,
+                    imageVector = Icons.Outlined.AutoAwesome,
                     contentDescription = "Onglet Mirys IA"
                 )
             },
@@ -557,7 +891,7 @@ fun CustomBottomBar(
             label = { Text("Fil Social", fontSize = 10.sp, fontWeight = FontWeight.SemiBold) },
             icon = {
                 Icon(
-                    imageVector = Icons.Default.Forum,
+                    imageVector = Icons.Outlined.Feed,
                     contentDescription = "Onglet Fil Social"
                 )
             },
@@ -570,7 +904,7 @@ fun CustomBottomBar(
             label = { Text("Talk", fontSize = 10.sp, fontWeight = FontWeight.SemiBold) },
             icon = {
                 Icon(
-                    imageVector = Icons.Default.Forum,
+                    imageVector = Icons.Outlined.Forum,
                     contentDescription = "Onglet Talk"
                 )
             },
@@ -583,7 +917,7 @@ fun CustomBottomBar(
             label = { Text("Agenda", fontSize = 10.sp, fontWeight = FontWeight.SemiBold) },
             icon = {
                 Icon(
-                    imageVector = Icons.Default.EventNote,
+                    imageVector = Icons.Outlined.EventNote,
                     contentDescription = "Onglet Agenda"
                 )
             },
@@ -591,16 +925,16 @@ fun CustomBottomBar(
         )
 
         NavigationBarItem(
-            selected = currentTab == "shop",
-            onClick = { onTabSelected("shop") },
-            label = { Text("Boutique", fontSize = 10.sp, fontWeight = FontWeight.SemiBold) },
+            selected = currentTab == "profile",
+            onClick = { onTabSelected("profile") },
+            label = { Text("Profil", fontSize = 10.sp, fontWeight = FontWeight.SemiBold) },
             icon = {
                 Icon(
-                    imageVector = Icons.Default.Store,
-                    contentDescription = "Onglet Boutique"
+                    imageVector = Icons.Outlined.Person,
+                    contentDescription = "Onglet Profil"
                 )
             },
-            modifier = Modifier.testTag("nav_shop")
+            modifier = Modifier.testTag("nav_profile")
         )
     }
 }

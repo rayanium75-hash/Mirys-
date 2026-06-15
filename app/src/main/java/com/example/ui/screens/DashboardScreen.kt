@@ -3,8 +3,13 @@ package com.example.ui.screens
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.core.*
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.border
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -15,13 +20,17 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.TextStyle
@@ -31,6 +40,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.ui.viewmodel.AuraViewModel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 @Composable
@@ -141,11 +151,11 @@ fun DashboardScreen(
                             ) {
                                 Icon(
                                     imageVector = when (score) {
-                                        5 -> Icons.Default.SentimentVerySatisfied
-                                        4 -> Icons.Default.SentimentSatisfied
-                                        3 -> Icons.Default.SentimentNeutral
-                                        2 -> Icons.Default.SentimentDissatisfied
-                                        else -> Icons.Default.SentimentVeryDissatisfied
+                                        5 -> Icons.Outlined.SentimentVerySatisfied
+                                        4 -> Icons.Outlined.SentimentSatisfied
+                                        3 -> Icons.Outlined.SentimentNeutral
+                                        2 -> Icons.Outlined.SentimentDissatisfied
+                                        else -> Icons.Outlined.SentimentVeryDissatisfied
                                     },
                                     contentDescription = labelName,
                                     tint = if (isSelected) {
@@ -221,7 +231,7 @@ fun DashboardScreen(
                             .testTag("quick_save_mood_button")
                     ) {
                         Icon(
-                            imageVector = Icons.Default.Check,
+                            imageVector = Icons.Outlined.Check,
                             contentDescription = null,
                             modifier = Modifier.size(16.dp)
                         )
@@ -230,6 +240,16 @@ fun DashboardScreen(
                     }
                 }
             }
+        }
+
+        // --- SECTION : SUIVI JOURNALIER PREMIUM (MODE COMPLET AVEC ENREGISTREMENTS THEMATIQUES) ---
+        item {
+            DailyPremiumTracker(viewModel = viewModel)
+        }
+
+        // --- HOOK UNIQUE ET ADDICTIF : REACTEUR DE RESONANCE ALCHIMIQUE D'AURA ---
+        item {
+            SoulResonanceReactor(viewModel = viewModel)
         }
 
         // 2. Stats Row
@@ -248,21 +268,21 @@ fun DashboardScreen(
                 StatItem(
                     title = "Mon Humeur",
                     value = moodText,
-                    icon = Icons.Default.Favorite,
+                    icon = Icons.Outlined.Favorite,
                     color = MaterialTheme.colorScheme.primaryContainer,
                     modifier = Modifier.weight(1f)
                 )
                 StatItem(
                     title = "Mes Tâches",
                     value = taskStatText,
-                    icon = Icons.Default.CheckCircle,
+                    icon = Icons.Outlined.CheckCircle,
                     color = MaterialTheme.colorScheme.secondaryContainer,
                     modifier = Modifier.weight(1f)
                 )
                 StatItem(
                     title = "Journal",
                     value = "${journalEntries.size} entrées",
-                    icon = Icons.Default.Book,
+                    icon = Icons.Outlined.Book,
                     color = MaterialTheme.colorScheme.tertiaryContainer,
                     modifier = Modifier.weight(1f)
                 )
@@ -289,7 +309,7 @@ fun DashboardScreen(
                     ) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Icon(
-                                imageVector = Icons.Default.AutoAwesome,
+                                imageVector = Icons.Outlined.AutoAwesome,
                                 contentDescription = "Mood Assessment Icon",
                                 tint = MaterialTheme.colorScheme.primary,
                                 modifier = Modifier.size(24.dp)
@@ -312,7 +332,7 @@ fun DashboardScreen(
                                 CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
                             } else {
                                 Icon(
-                                    imageVector = Icons.Default.Refresh,
+                                    imageVector = Icons.Outlined.Refresh,
                                     contentDescription = "Refrechir l'analyse",
                                     tint = MaterialTheme.colorScheme.primary
                                 )
@@ -490,7 +510,7 @@ fun DashboardScreen(
                     ) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Icon(
-                                imageVector = Icons.Default.Chat,
+                                imageVector = Icons.Outlined.Chat,
                                 contentDescription = "AI chat icon",
                                 tint = MaterialTheme.colorScheme.secondary,
                                 modifier = Modifier.size(20.dp)
@@ -516,7 +536,7 @@ fun DashboardScreen(
                             modifier = Modifier.size(32.dp).testTag("clear_chat_button")
                         ) {
                             Icon(
-                                imageVector = Icons.Default.DeleteSweep,
+                                imageVector = Icons.Outlined.DeleteSweep,
                                 contentDescription = "Effacer l'historique",
                                 tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
                                 modifier = Modifier.size(18.dp)
@@ -655,7 +675,7 @@ fun DashboardScreen(
                             elevation = FloatingActionButtonDefaults.elevation(0.dp)
                         ) {
                             Icon(
-                                imageVector = Icons.Default.Send,
+                                imageVector = Icons.Outlined.Send,
                                 contentDescription = "Envoyer",
                                 modifier = Modifier.size(18.dp)
                             )
@@ -754,6 +774,522 @@ fun StatItem(
                 color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
                 textAlign = TextAlign.Center
             )
+        }
+    }
+}
+
+@Composable
+fun DailyPremiumTracker(viewModel: AuraViewModel) {
+    val isPremium = viewModel.subscriptionTier != "Gratuit"
+    val theme = viewModel.trackerSelectedTheme
+
+    // Dynamically retrieve visual gradients and accents based on sub-themes
+    val gradientColors = when (theme) {
+        "Mirys Cosmique 🌌" -> listOf(Color(0xFF2C1B4D), Color(0xFF13082A))
+        "Forêt Zen 🌿" -> listOf(Color(0xFF122C1C), Color(0xFF041008))
+        "Océan Serein 🌊" -> listOf(Color(0xFF0E2540), Color(0xFF030D1A))
+        else -> listOf(Color(0xFF381515), Color(0xFF100303)) // Volcan Créatif
+    }
+
+    val glowColor = when (theme) {
+        "Mirys Cosmique 🌌" -> Color(0xFFB088FF)
+        "Forêt Zen 🌿" -> Color(0xFF50D08A)
+        "Océan Serein 🌊" -> Color(0xFF3DA9FC)
+        else -> Color(0xFFFF6B6B)
+    }
+
+    Card(
+        shape = RoundedCornerShape(24.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.Transparent),
+        border = BorderStroke(1.2.dp, glowColor.copy(alpha = 0.3f)),
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(
+                brush = Brush.verticalGradient(gradientColors),
+                shape = RoundedCornerShape(24.dp)
+            )
+            .testTag("daily_premium_tracker_card")
+    ) {
+        Box(modifier = Modifier.fillMaxWidth()) {
+            // Main content
+            Column(
+                modifier = Modifier
+                    .padding(16.dp)
+                    .blur(if (isPremium) 0.dp else 10.dp),
+                verticalArrangement = Arrangement.spacedBy(14.dp)
+            ) {
+                // Header of tracker
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Icon(imageVector = Icons.Outlined.CheckCircle, contentDescription = null, tint = glowColor, modifier = Modifier.size(18.dp))
+                        Text(
+                            text = "Suivi Journalier Premium 🌟",
+                            fontWeight = FontWeight.ExtraBold,
+                            fontSize = 15.sp,
+                            color = Color.White
+                        )
+                    }
+                    
+                    Box(
+                        modifier = Modifier
+                            .background(glowColor.copy(alpha = 0.15f), RoundedCornerShape(8.dp))
+                            .border(1.dp, glowColor.copy(alpha = 0.4f), RoundedCornerShape(8.dp))
+                            .padding(horizontal = 8.dp, vertical = 4.dp)
+                    ) {
+                        Text(text = "PREMIUM", fontSize = 9.sp, fontWeight = FontWeight.Bold, color = glowColor)
+                    }
+                }
+
+                // Theme choice pills
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text("Thème de l'Habit Tracker :", fontSize = 11.sp, color = Color.LightGray)
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        val themes = listOf("Mirys Cosmique 🌌", "Forêt Zen 🌿", "Océan Serein 🌊", "Volcan 🌋")
+                        themes.forEach { t ->
+                            val currentThemeStr = if (t == "Volcan 🌋") "Volcan Créatif 🌋" else t
+                            val isSelected = theme == currentThemeStr
+                            Box(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(if (isSelected) glowColor else Color.White.copy(alpha = 0.08f))
+                                    .clickable { if (isPremium) viewModel.trackerSelectedTheme = currentThemeStr }
+                                    .padding(vertical = 6.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = t.split(" ")[0],
+                                    fontSize = 10.sp,
+                                    fontWeight = FontWeight.ExtraBold,
+                                    color = if (isSelected) Color.Black else Color.White
+                                )
+                            }
+                        }
+                    }
+                }
+
+                Divider(color = Color.White.copy(alpha = 0.08f))
+
+                // Trackers lists
+                // 1. Water Cup Intake
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column {
+                        Text("Hydratation 💧", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                        Text("${viewModel.trackerWater}/8 verres", fontSize = 10.sp, color = Color.LightGray)
+                    }
+                    Row(horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically) {
+                        IconButton(
+                            onClick = { if (isPremium && viewModel.trackerWater > 0) { viewModel.trackerWater--; viewModel.triggerBeep(3) } },
+                            modifier = Modifier.size(28.dp).background(Color.White.copy(alpha = 0.1f), CircleShape)
+                        ) {
+                            Text("-", color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                        }
+                        IconButton(
+                            onClick = { if (isPremium && viewModel.trackerWater < 8) { viewModel.trackerWater++; viewModel.triggerBeep(3) } },
+                            modifier = Modifier.size(28.dp).background(glowColor.copy(alpha = 0.2f), CircleShape)
+                        ) {
+                            Text("+", color = glowColor, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                        }
+                    }
+                }
+
+                // 2. Meditate State
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column {
+                        Text("Méditation Active 🧘", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                        Text(if (viewModel.trackerMeditate) "Complétée (+10 XP)" else "S'accorder 5 minutes", fontSize = 10.sp, color = Color.LightGray)
+                    }
+                    Checkbox(
+                        checked = viewModel.trackerMeditate,
+                        onCheckedChange = {
+                            if (isPremium) {
+                                viewModel.trackerMeditate = it
+                                if (it) {
+                                    viewModel.xp += 10
+                                    viewModel.triggerBeep(1)
+                                } else {
+                                    viewModel.xp = kotlin.math.max(0, viewModel.xp - 10)
+                                    viewModel.triggerBeep(3)
+                                }
+                            }
+                        },
+                        colors = CheckboxDefaults.colors(
+                            checkedColor = glowColor,
+                            checkmarkColor = Color.Black
+                        )
+                    )
+                }
+
+                // 3. Steps Target
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column {
+                        Text("Marche Active / Pas 🚶", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                        Text("${viewModel.trackerSteps} / 10 000 pas", fontSize = 10.sp, color = Color.LightGray)
+                    }
+                    Row(horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically) {
+                        IconButton(
+                            onClick = { if (isPremium && viewModel.trackerSteps >= 1000) { viewModel.trackerSteps -= 1000; viewModel.triggerBeep(3) } },
+                            modifier = Modifier.size(28.dp).background(Color.White.copy(alpha = 0.1f), CircleShape)
+                        ) {
+                            Text("-1k", color = Color.White, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                        }
+                        IconButton(
+                            onClick = { if (isPremium && viewModel.trackerSteps < 20000) { viewModel.trackerSteps += 1000; viewModel.triggerBeep(3) } },
+                            modifier = Modifier.size(28.dp).background(glowColor.copy(alpha = 0.2f), CircleShape)
+                        ) {
+                            Text("+1k", color = glowColor, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                        }
+                    }
+                }
+
+                // 4. Sleep
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column {
+                        Text("Heures de Sommeil 😴", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                        Text("${viewModel.trackerSleepHours}h / 8h recommandées", fontSize = 10.sp, color = Color.LightGray)
+                    }
+                    Row(horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically) {
+                        IconButton(
+                            onClick = { if (isPremium && viewModel.trackerSleepHours > 0) { viewModel.trackerSleepHours--; viewModel.triggerBeep(3) } },
+                            modifier = Modifier.size(28.dp).background(Color.White.copy(alpha = 0.1f), CircleShape)
+                        ) {
+                            Text("-", color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                        }
+                        IconButton(
+                            onClick = { if (isPremium && viewModel.trackerSleepHours < 24) { viewModel.trackerSleepHours++; viewModel.triggerBeep(3) } },
+                            modifier = Modifier.size(28.dp).background(glowColor.copy(alpha = 0.2f), CircleShape)
+                        ) {
+                            Text("+", color = glowColor, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                        }
+                    }
+                }
+            }
+
+            // Lock Overlay (shown if free user)
+            if (!isPremium) {
+                Box(
+                    modifier = Modifier
+                        .matchParentSize()
+                        .background(Color.Black.copy(alpha = 0.72f), RoundedCornerShape(24.dp)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(
+                        modifier = Modifier.padding(24.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Outlined.Lock,
+                            contentDescription = "🔒",
+                            tint = Color(0xFFFFD700),
+                            modifier = Modifier.size(40.dp)
+                        )
+                        Text(
+                            text = "Suivi Journalier Premium 🔒",
+                            fontWeight = FontWeight.ExtraBold,
+                            fontSize = 15.sp,
+                            color = Color.White,
+                            textAlign = TextAlign.Center
+                        )
+                        Text(
+                            text = "Débloquez l'habit tracking dynamique avec thèmes exclusifs (Cosmique, Forêt, Océan) et rapports statistiques.",
+                            fontSize = 10.5.sp,
+                            color = Color.LightGray,
+                            textAlign = TextAlign.Center,
+                            lineHeight = 15.sp
+                        )
+                        Button(
+                            onClick = {
+                                // Simulate switching to Premium instantly to test and enjoy the app!
+                                viewModel.subscriptionTier = "Premium Ultimate 👑"
+                                viewModel.coins += 200
+                                viewModel.triggerBeep(1)
+                            },
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFFD700), contentColor = Color.Black),
+                            shape = RoundedCornerShape(12.dp)
+                        ) {
+                            Text("Débloquer Gratuitement (Démo) 🔑", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun SoulResonanceReactor(viewModel: AuraViewModel) {
+    val coroutineScope = rememberCoroutineScope()
+    var isFusing by remember { mutableStateOf(false) }
+
+    // Floating animation for deep mental immersion
+    val infiniteTransition = rememberInfiniteTransition()
+    val animatedPulseScale by infiniteTransition.animateFloat(
+        initialValue = 0.85f,
+        targetValue = 1.25f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(2500, easing = LinearEasing),
+            repeatMode = RepeatMode.Reverse
+        )
+    )
+    val animatedPulseAlpha by infiniteTransition.animateFloat(
+        initialValue = 0.6f,
+        targetValue = 0.1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(2500, easing = LinearEasing),
+            repeatMode = RepeatMode.Reverse
+        )
+    )
+
+    Card(
+        shape = RoundedCornerShape(24.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.18f)),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.25f)),
+        modifier = Modifier
+            .fillMaxWidth()
+            .testTag("soul_resonance_reactor_card")
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp)
+        ) {
+            // Header
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Outlined.AllInclusive,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(22.dp)
+                )
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = "Synchroniseur Vibratoire Mirys 🌀",
+                        fontWeight = FontWeight.ExtraBold,
+                        fontSize = 14.sp,
+                        color = Color.White
+                    )
+                    Text(
+                        text = "Technologie de résonance cognitive et d'engagement quotidien.",
+                        fontSize = 10.sp,
+                        color = Color.LightGray
+                    )
+                }
+                
+                // Active indicators count
+                Box(
+                    modifier = Modifier
+                        .background(Color(0xFFE040FB).copy(alpha = 0.2f), RoundedCornerShape(8.dp))
+                        .padding(horizontal = 6.dp, vertical = 3.dp)
+                ) {
+                    Text(text = "${viewModel.activeResonanceSparkles} ✨", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = Color(0xFFE040FB))
+                }
+            }
+
+            Text(
+                text = "Sélectionnez une fréquence de concentration organique et synchronisez votre énergie quotidienne. Compléter la résonance chaque jour vous apporte des graines, des reliques rares et renforce l'assiduité !",
+                fontSize = 11.sp,
+                color = Color.LightGray,
+                lineHeight = 15.sp
+            )
+
+            // Frequency Pill Selector
+            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Text("Fréquence Vibratoire active :", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color.LightGray)
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    val frequencies = listOf("432 Hz - Calme", "528 Hz - Succès", "963 Hz - Focus")
+                    frequencies.forEach { freq ->
+                        val isChosen = viewModel.resonanceFrequencyName.contains(freq.substring(0, 3))
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(if (isChosen) MaterialTheme.colorScheme.primary.copy(alpha = 0.25f) else Color.White.copy(alpha = 0.05f))
+                                .border(1.dp, if (isChosen) MaterialTheme.colorScheme.primary else Color.White.copy(alpha = 0.1f), RoundedCornerShape(8.dp))
+                                .clickable {
+                                    if (!isFusing && !viewModel.resonanceDailyCompleted) {
+                                        viewModel.resonanceFrequencyName = freq
+                                        viewModel.triggerBeep(3)
+                                    }
+                                }
+                                .padding(vertical = 6.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(freq, fontSize = 10.sp, fontWeight = FontWeight.Bold, color = if (isChosen) Color.White else Color.Gray)
+                        }
+                    }
+                }
+            }
+
+            // central reactor canvas
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(130.dp)
+                    .background(Color.Black.copy(alpha = 0.2f), RoundedCornerShape(16.dp))
+                    .border(1.dp, Color.White.copy(alpha = 0.04f), RoundedCornerShape(16.dp)),
+                contentAlignment = Alignment.Center
+            ) {
+                // Background waves when charging
+                Canvas(modifier = Modifier.size(110.dp)) {
+                    val sizePx = size.width
+                    // concentric expanding circles representing vibration energy waves
+                    if (isFusing) {
+                        drawCircle(
+                            color = Color(0xFF00E5FF).copy(alpha = animatedPulseAlpha),
+                            radius = (sizePx / 2f) * animatedPulseScale,
+                            style = Stroke(width = 3f)
+                        )
+                        drawCircle(
+                            color = Color(0xFFE040FB).copy(alpha = animatedPulseAlpha * 0.7f),
+                            radius = (sizePx / 2f) * (animatedPulseScale * 0.7f),
+                            style = Stroke(width = 2f)
+                        )
+                    } else if (viewModel.resonanceDailyCompleted) {
+                        // complete state golden halo
+                        drawCircle(
+                            color = Color(0xFFFFD700).copy(alpha = 0.15f),
+                            radius = sizePx / 2f
+                        )
+                    }
+                }
+
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    if (viewModel.resonanceDailyCompleted) {
+                        Icon(imageVector = Icons.Outlined.BrightnessHigh, contentDescription = null, tint = Color(0xFFFFD700), modifier = Modifier.size(36.dp))
+                        Text("Résonance Synchronisée ! 🎉", fontSize = 12.sp, fontWeight = FontWeight.Black, color = Color(0xFFFFD700))
+                        Text(text = "Rendez-vous demain pour recharger", fontSize = 10.sp, color = Color.Gray)
+                    } else if (isFusing) {
+                        CircularProgressIndicator(
+                            progress = viewModel.resonanceCoreCharge / 100f,
+                            color = MaterialTheme.colorScheme.primary,
+                            strokeWidth = 4.dp,
+                            modifier = Modifier.size(36.dp)
+                        )
+                        Text("Chargement : ${viewModel.resonanceCoreCharge}%", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                        Text("Gardez l'esprit centré...", fontSize = 9.sp, color = Color.LightGray)
+                    } else {
+                        IconButton(
+                            onClick = {
+                                if (!isFusing && !viewModel.resonanceDailyCompleted) {
+                                    isFusing = true
+                                    coroutineScope.launch {
+                                        for (progress in 0..100 step 10) {
+                                            delay(400)
+                                            viewModel.chargeResonanceUnitStep(10)
+                                        }
+                                        isFusing = false
+                                    }
+                                }
+                            },
+                            modifier = Modifier
+                                .size(48.dp)
+                                .background(MaterialTheme.colorScheme.primary, CircleShape)
+                        ) {
+                            Icon(imageVector = Icons.Outlined.Fingerprint, contentDescription = null, tint = Color.Black, modifier = Modifier.size(24.dp))
+                        }
+                        Text("Toucher pour Synchroniser", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                        Text("Nécessite 4 secondes de concentration", fontSize = 9.sp, color = Color.LightGray)
+                    }
+                }
+            }
+
+            // ALCHEMICAL RELICS FORGE - HOOK THAT MAKES USERS ADDICTED to collect stars and forge
+            Divider(color = Color.White.copy(alpha = 0.05f))
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Icon(imageVector = Icons.Outlined.Eco, contentDescription = null, tint = Color(0xFF4CAF50), modifier = Modifier.size(15.dp))
+                        Text("Graines de Vie Alchimiques :", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                    }
+                    Text("${viewModel.resonanceEnergySeeds} / 3 🍀", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color(0xFF4CAF50))
+                }
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "Dépensez 3 graines pour forger une étoile légendaire dans votre ciel spirituel (+100 Or, +50 XP) !",
+                        fontSize = 10.sp,
+                        color = Color.LightGray,
+                        modifier = Modifier.weight(1f)
+                    )
+                    Button(
+                        onClick = { viewModel.forgeAstralRelic() },
+                        enabled = viewModel.resonanceEnergySeeds >= 3,
+                        shape = RoundedCornerShape(10.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE040FB)),
+                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp),
+                        modifier = Modifier.height(28.dp)
+                    ) {
+                        Text("Forger ⭐", fontSize = 9.sp, fontWeight = FontWeight.Bold)
+                    }
+                }
+
+                // Star sky container representation
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(54.dp)
+                        .background(Color.White.copy(alpha = 0.04f), RoundedCornerShape(12.dp))
+                        .padding(8.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text("Votre Constellation :", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = Color.Gray)
+                        (1..6).forEach { starIdx ->
+                            val isForged = viewModel.activeConstellationStars.contains(starIdx)
+                            Icon(
+                                imageVector = if (isForged) Icons.Outlined.Star else Icons.Outlined.StarBorder,
+                                contentDescription = null,
+                                tint = if (isForged) Color(0xFFFFD700) else Color.DarkGray,
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
+                    }
+                }
+            }
         }
     }
 }

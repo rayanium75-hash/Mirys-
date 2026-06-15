@@ -9,6 +9,8 @@ data class Task(
     val title: String,
     val isCompleted: Boolean = false,
     val priority: String = "Moyenne", // "Basse", "Moyenne", "Haute"
-    val category: String = "Général", // "Général", "Bien-être", "Études", "Santé"
+    val category: String = "Général", // "Général", "Bien-être", "Études", "Santé",
+    val description: String = "",
+    val customBgColorHex: String? = null,
     val createdAt: Long = System.currentTimeMillis()
 )

@@ -13,6 +13,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -49,6 +50,8 @@ fun GamesScreen(
     modifier: Modifier = Modifier
 ) {
     var subTab by remember { mutableStateOf("hub") } // "hub", "quiz", "chess", "memory", "sudoku", "2048", "wordle", "lightsout", "simon"
+    var showUnlockDialog by remember { mutableStateOf(false) }
+    var selectedLockedGame by remember { mutableStateOf<GameConfig?>(null) }
     
     // Ambient soundscapes state
     var isAmbientPlaying by remember { mutableStateOf(false) }
@@ -144,14 +147,14 @@ fun GamesScreen(
 
                 Text(
                     text = when (subTab) {
-                        "quiz" -> "Quiz Trivia"
+                        "quiz" -> "Quiz Majoie"
                         "chess" -> "Échecs IA"
                         "memory" -> "Jeu de Mémoire"
-                        "sudoku" -> "Sudoku Zen"
-                        "2048" -> "2048 Math"
+                        "sudoku" -> "Elsa Zen"
+                        "2048" -> "2048 Sys"
                         "wordle" -> "Mots Doux"
                         "lightsout" -> "Lumières Out"
-                        "simon" -> "Simon Sens"
+                        "simon" -> "Puissance 4"
                         else -> ""
                     },
                     fontWeight = FontWeight.Black,
@@ -332,21 +335,28 @@ fun GamesScreen(
                             )
 
                             val games = listOf(
-                                GameConfig("quiz", "Quiz Trivia", "QCM & Culture", "Philosophie zen, organisation logique et bien-être. Établissez votre score de sagesse !", "🧠 Sagesse", "Tous Niveaux", Color(0xFF673AB7)),
+                                GameConfig("quiz", "Quiz Majoie", "QCM & Culture", "Philosophie zen, organisation logique et bien-être. Établissez votre score de sagesse !", "🧠 Sagesse", "Tous Niveaux", Color(0xFF673AB7)),
                                 GameConfig("chess", "Échecs IA", "Tactique pure", "Défiez notre robot programmateur d'échecs sur un échiquier élégant.", "♟️ Tactique", "Avancé", Color(0xFFFF5722)),
                                 GameConfig("memory", "Mémoire Visuelle", "Paires de Cartes", "Faites correspondre les cartes identiques avec un chronomètre fluide.", "👁️ Attention", "Facile", Color(0xFF4CAF50)),
-                                GameConfig("sudoku", "Sudoku Zen", "Grille de Chiffres", "Le puzzle logique par excellence. Comprend un système d'aide et de détection d'erreurs.", "🔢 Logique", "Moyen", Color(0xFF00BCD4)),
-                                GameConfig("2048", "2048 Math", "Calcul & Fusion", "Glissez les carrés et combinez les multiples pour récolter l'ultime tuile dorée 2048.", "➕ Réflexe", "Moyen", Color(0xFF9C27B0)),
+                                GameConfig("sudoku", "Elsa Zen", "Grille de Chiffres", "Le puzzle logique par excellence. Comprend un système d'aide et de détection d'erreurs.", "🔢 Logique", "Moyen", Color(0xFF00BCD4)),
+                                GameConfig("2048", "2048 Sys", "Calcul & Fusion", "Glissez les carrés et combinez les multiples pour récolter l'ultime tuile dorée 2048.", "➕ Réflexe", "Moyen", Color(0xFF9C27B0)),
                                 GameConfig("wordle", "Mots Doux", "Orthographe", "Devinez le mot bienveillant secret de 5 lettres en un maximum de 6 tentatives.", "🔤 Vocabulaire", "Amusant", Color(0xFFE91E63)),
                                 GameConfig("lightsout", "Lumières Out", "Cassecou", "Éteignez toutes les cases. Chaque clic commute un motif cruciforme sur l'échiquier !", "💡 Parité", "Excellent", Color(0xFF3F51B5)),
-                                GameConfig("simon", "Simon Says", "Concentration", "Mémorisez et répétez la mélodie visuelle et rythmique de Simon. Attention accrue !", "🔔 Écoute", "Moyen", Color(0xFFFF9800))
+                                GameConfig("simon", "Puissance 4", "Alignement optimal", "Alignez 4 jetons de votre couleur avant l'IA dans un duel de pure logique !", "🔴 Alignement", "Moyen", Color(0xFFFF9800))
                             )
 
                             games.forEach { game ->
                                 Card(
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .clickable { subTab = game.id }
+                                        .clickable {
+                                            if (viewModel.isGameUnlocked(game.id)) {
+                                                subTab = game.id
+                                            } else {
+                                                selectedLockedGame = game
+                                                showUnlockDialog = true
+                                            }
+                                        }
                                         .testTag("game_card_${game.id}"),
                                     shape = RoundedCornerShape(20.dp),
                                     border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f)),
@@ -366,18 +376,20 @@ fun GamesScreen(
                                                 .background(game.color.copy(alpha = 0.15f)),
                                             contentAlignment = Alignment.Center
                                         ) {
-                                            Text(
-                                                text = when (game.id) {
-                                                    "quiz" -> "❓"
-                                                    "chess" -> "♟️"
-                                                    "memory" -> "🃏"
-                                                    "sudoku" -> "🧩"
-                                                    "2048" -> "🔢"
-                                                    "wordle" -> "✍️"
-                                                    "lightsout" -> "💡"
-                                                    else -> "🔔"
+                                            Icon(
+                                                imageVector = when (game.id) {
+                                                    "quiz" -> Icons.Default.Help
+                                                    "chess" -> Icons.Default.Extension
+                                                    "memory" -> Icons.Default.SportsEsports
+                                                    "sudoku" -> Icons.Default.GridOn
+                                                    "2048" -> Icons.Default.Apps
+                                                    "wordle" -> Icons.Default.Translate
+                                                    "lightsout" -> Icons.Default.Lightbulb
+                                                    else -> Icons.Default.RadioButtonChecked
                                                 },
-                                                fontSize = 24.sp
+                                                contentDescription = game.title,
+                                                tint = game.color,
+                                                modifier = Modifier.size(26.dp)
                                             )
                                         }
 
@@ -428,9 +440,9 @@ fun GamesScreen(
                                         }
 
                                         Icon(
-                                            imageVector = Icons.Default.ArrowForwardIos,
+                                            imageVector = if (viewModel.isGameUnlocked(game.id)) Icons.Default.ArrowForwardIos else Icons.Default.Lock,
                                             contentDescription = "Lancer",
-                                            tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.6f),
+                                            tint = if (viewModel.isGameUnlocked(game.id)) MaterialTheme.colorScheme.primary.copy(alpha = 0.6f) else Color(0xFFFFC107),
                                             modifier = Modifier.size(14.dp)
                                         )
                                     }
@@ -450,6 +462,68 @@ fun GamesScreen(
             }
         }
     }
+
+    if (showUnlockDialog && selectedLockedGame != null) {
+        val gameToUnlock = selectedLockedGame!!
+        val context = LocalContext.current
+        AlertDialog(
+            onDismissRequest = { showUnlockDialog = false },
+            title = {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Icon(imageVector = Icons.Default.Lock, contentDescription = null, tint = gameToUnlock.color)
+                    Text("Débloquer le Défi : ${gameToUnlock.title}", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                }
+            },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Text("Ce défi de logique de Mirys est réservé aux membres Premium. Vous pouvez utiliser vos pièces d'or ou profiter d'une offre d'essai gratuit de 2 jours.")
+                    Text("Options disponibles :", fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                    Text("⚡ Démarrer l'essai gratuit de 2 jours (accès immédiat complet).", fontSize = 12.sp, color = Color(0xFF009688), fontWeight = FontWeight.Bold)
+                    Text("🪙 Débloquer individuellement pour 150 pièces.", fontSize = 12.sp)
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text("Votre solde actuel : ${viewModel.coins} 🪙", fontWeight = FontWeight.Black, fontSize = 13.sp, color = MaterialTheme.colorScheme.primary)
+                }
+            },
+            confirmButton = {
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Button(
+                        onClick = {
+                            viewModel.start2DayFreeTrial()
+                            Toast.makeText(context, "Essai 2 jours activé ! Défi déverrouillé ! ⚡🎉", Toast.LENGTH_SHORT).show()
+                            showUnlockDialog = false
+                            subTab = gameToUnlock.id
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF009688))
+                    ) {
+                        Text("ESSAI GRATUIT 2J", fontSize = 10.sp, color = Color.White, fontWeight = FontWeight.Bold)
+                    }
+                    Button(
+                        onClick = {
+                            val success = viewModel.unlockGameWithCoins(gameToUnlock.id)
+                            if (success) {
+                                Toast.makeText(context, "Défi ${gameToUnlock.title} Débloqué ! Amusez-vous bien ! 🎮🎉", Toast.LENGTH_SHORT).show()
+                                showUnlockDialog = false
+                                subTab = gameToUnlock.id
+                            } else {
+                                Toast.makeText(context, "Pièces insuffisantes (150 requis) ! Complétez vos tâches.", Toast.LENGTH_LONG).show()
+                            }
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+                    ) {
+                        Text("Échanger 150 🪙", fontSize = 10.sp)
+                    }
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showUnlockDialog = false }) {
+                    Text("Fermer", fontSize = 11.sp)
+                }
+            }
+        )
+    }
 }
 
 // Data grid helper holding games configuration parameters
@@ -463,12 +537,83 @@ data class GameConfig(
     val color: Color
 )
 
+@Composable
+fun GameRuleHeader(
+    title: String,
+    rules: String,
+    color: Color = MaterialTheme.colorScheme.primary
+) {
+    var expanded by remember { mutableStateOf(false) }
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .animateContentSize()
+            .testTag("game_rule_header_${title.lowercase().replace(" ", "_")}"),
+        shape = RoundedCornerShape(14.dp),
+        border = BorderStroke(1.dp, color.copy(alpha = 0.4f)),
+        colors = CardDefaults.cardColors(containerColor = color.copy(alpha = 0.08f))
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(12.dp),
+            verticalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { expanded = !expanded },
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Info,
+                        contentDescription = "Règles",
+                        tint = color,
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Text(
+                        text = "Comment jouer à $title ?",
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 13.sp,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                }
+                Icon(
+                    imageVector = if (expanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                    contentDescription = if (expanded) "Réduire" else "Déplier",
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(18.dp)
+                )
+            }
+            if (expanded) {
+                Spacer(modifier = Modifier.height(6.dp))
+                Text(
+                    text = rules,
+                    fontSize = 11.5.sp,
+                    lineHeight = 15.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(start = 28.dp, bottom = 4.dp)
+                )
+            }
+        }
+    }
+}
+
 // ================== QUIZ TRIVIA DESIGN ==================
 @Composable
 fun QuizSection(viewModel: AuraViewModel) {
     val context = LocalContext.current
     val activeCat = viewModel.quizActiveCat
     val completed = viewModel.quizCompleted
+    val lang = viewModel.appLanguage
+
+    // Active category for level selection State
+    var selectedCategoryForLevel by remember { mutableStateOf<com.example.data.QuizCategoryInfo?>(null) }
 
     if (activeCat != null) {
         // Active Quiz Loop Screen !
@@ -476,6 +621,136 @@ fun QuizSection(viewModel: AuraViewModel) {
     } else if (completed) {
         // Completed Score Card Screen !
         QuizCompletionScreen(viewModel = viewModel)
+    } else if (selectedCategoryForLevel != null) {
+        // LEVEL SELECTION VIEW
+        val category = selectedCategoryForLevel!!
+        
+        // Translate category name
+        val translatedTitle = when (category.id) {
+            "Sciences" -> if (lang == "EN") "Science" else if (lang == "ES") "Ciencias" else if (lang == "DE") "Wissenschaften" else "Sciences"
+            "Histoire" -> if (lang == "EN") "History" else if (lang == "ES") "Historia" else if (lang == "DE") "Geschichte" else "Histoire"
+            "Echecs" -> if (lang == "EN") "Chess" else if (lang == "ES") "Ajedrez" else if (lang == "DE") "Schach" else "Échecs & Tactique"
+            "Culture" -> if (lang == "EN") "Culture" else if (lang == "ES") "Cultura" else if (lang == "DE") "Kultur" else "Culture & Arts"
+            "Géographie" -> if (lang == "EN") "Geography" else if (lang == "ES") "Geografía" else if (lang == "DE") "Geographie" else "Géographie"
+            "Technologie" -> if (lang == "EN") "Technology" else if (lang == "ES") "Tecnología" else if (lang == "DE") "Technologie" else "Technologie"
+            "Sport" -> if (lang == "EN") "Sports" else if (lang == "ES") "Deportes" else if (lang == "DE") "Sport" else "Sports & Athlètes"
+            "Cinéma" -> if (lang == "EN") "Cinema" else if (lang == "ES") "Cine" else if (lang == "DE") "Kino" else "Cinéma & TV"
+            "Musique" -> if (lang == "EN") "Music" else if (lang == "ES") "Música" else if (lang == "DE") "Musik" else "Musique"
+            "Nature" -> if (lang == "EN") "Nature" else if (lang == "ES") "Naturaleza" else if (lang == "DE") "Natur" else "Nature & Éco"
+            else -> category.title
+        }
+
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                IconButton(
+                    onClick = { selectedCategoryForLevel = null },
+                    modifier = Modifier.size(36.dp)
+                ) {
+                    Icon(Icons.Default.ArrowBack, contentDescription = "Back", tint = MaterialTheme.colorScheme.primary)
+                }
+                Text(
+                    text = translatedTitle,
+                    fontWeight = FontWeight.ExtraBold,
+                    fontSize = 20.sp,
+                    color = MaterialTheme.colorScheme.primary
+                )
+            }
+
+            Text(
+                text = if (lang == "EN") "Choose your level of wisdom for $translatedTitle. Each level contains 10 challenging questions."
+                       else if (lang == "ES") "Elige tu nivel de sabiduría para $translatedTitle. Cada nivel contiene 10 preguntas desafiantes."
+                       else if (lang == "DE") "Wähle deine Stufe der Weisheit für $translatedTitle. Jede Stufe enthält 10 anspruchsvolle Fragen."
+                       else "Choisissez votre niveau de sagesse pour $translatedTitle. Chaque niveau comporte 10 questions de culture générale.",
+                fontSize = 13.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                lineHeight = 18.sp
+            )
+
+            // Define 3 levels with stars/difficulty indicators
+            val levelsList = listOf(
+                LevelItem(1, if (lang == "EN") "Apprentice" else if (lang == "ES") "Aprendiz" else if (lang == "DE") "Lehrling" else "Niveau 1 : Apprenti", "⭐⭐", if (lang == "EN") "Coins Multiplier: x2" else "Multiplicateur Pièces : x2", category.color),
+                LevelItem(2, if (lang == "EN") "Disciple" else if (lang == "ES") "Discípulo" else if (lang == "DE") "Schüler" else "Niveau 2 : Disciple", "⭐⭐⭐⭐", if (lang == "EN") "Coins Multiplier: x3" else "Multiplicateur Pièces : x3", category.color),
+                LevelItem(3, if (lang == "EN") "Master" else if (lang == "ES") "Maestro" else if (lang == "DE") "Meister" else "Niveau 3 : Maître", "⭐⭐⭐⭐⭐⭐", if (lang == "EN") "Coins Multiplier: x5" else "Multiplicateur Pièces : x5", category.color)
+            )
+
+            Column(
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+                modifier = Modifier.fillMaxWidth().weight(1f)
+            ) {
+                levelsList.forEach { level ->
+                    Card(
+                        onClick = { viewModel.startQuizSession(category.id, level.num) },
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)
+                        ),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(90.dp)
+                            .border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(12.dp))
+                            .testTag("quiz_level_${category.id}_${level.num}")
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(16.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Row(
+                                horizontalArrangement = Arrangement.spacedBy(16.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(42.dp)
+                                        .background(level.color.copy(alpha = 0.1f), CircleShape),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(text = "${level.num}", fontWeight = FontWeight.Bold, color = level.color)
+                                }
+
+                                Column {
+                                    Text(
+                                        text = level.title,
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 15.sp,
+                                        color = MaterialTheme.colorScheme.onSurface
+                                    )
+                                    Text(
+                                        text = level.desc,
+                                        fontSize = 11.sp,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                            }
+
+                            Column(horizontalAlignment = Alignment.End) {
+                                Text(
+                                    text = level.stars,
+                                    fontSize = 12.sp,
+                                    color = Color(0xFFFFC107)
+                                )
+                                Text(
+                                    text = if (lang == "EN") "10 Qs • Active" else "10 Qs • Activé",
+                                    fontSize = 11.sp,
+                                    color = MaterialTheme.colorScheme.primary,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
     } else {
         // Dashboard selecting category screen
         Column(
@@ -485,27 +760,41 @@ fun QuizSection(viewModel: AuraViewModel) {
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             Spacer(modifier = Modifier.height(4.dp))
+            
+            GameRuleHeader(
+                title = "Quiz Majoie",
+                rules = "Participez à notre grand quiz de sagesse ! Répondez correctement à une série de 10 questions à choix multiples (QCM) sur le thème sélectionné. Chaque bonne réponse d'affilée fait fructifier vos gains en pièces de sagesse et en expérience (XP) !"
+            )
+            
+            val dashboardTitle = when (lang) {
+                "EN" -> "Train Your Mind!"
+                "ES" -> "¡Entrena tu mente!"
+                "DE" -> "Trainiere deinen Geist!"
+                else -> "Entraînez votre esprit !"
+            }
+            val dashboardSubtitle = when (lang) {
+                "EN" -> "Participate in our daily thematic quizzes to earn coins and boost your XP. Strengthen your focus!"
+                "ES" -> "Participa en nuestros cuestionarios temáticos diarios para ganar monedas y mejorar tus XP. ¡Refuerza tu enfoque!"
+                "DE" -> "Nimm an unseren täglichen thematischen Quizzen teil, um Münzen zu verdienen und deine XP zu steigern. Stärke deinen Fokus!"
+                else -> "Participez à nos quiz thématiques quotidiens pour remporter des pièces et doper vos XP. Resserrez votre concentration !"
+            }
+
             Text(
-                text = "Entraînez votre esprit !",
+                text = dashboardTitle,
                 fontWeight = FontWeight.ExtraBold,
                 fontSize = 20.sp,
                 color = MaterialTheme.colorScheme.primary,
                 letterSpacing = (-0.5).sp
             )
             Text(
-                text = "Participez à nos quiz thématiques quotidiens pour remporter des pièces et doper vos XP. Resserrez votre concentration !",
+                text = dashboardSubtitle,
                 fontSize = 13.sp,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 lineHeight = 18.sp
             )
 
             // Category Selection Cards
-            val categories = listOf(
-                Pair("Sciences", "🔬"),
-                Pair("Histoire", "📚"),
-                Pair("Echecs", "♟️"),
-                Pair("Culture", "🎬")
-            )
+            val categories = com.example.data.QuizDatabase.categoriesDetails
 
             LazyVerticalGrid(
                 columns = GridCells.Fixed(2),
@@ -516,9 +805,40 @@ fun QuizSection(viewModel: AuraViewModel) {
                     .weight(1f)
             ) {
                 items(categories.size) { idx ->
-                    val (catId, emoji) = categories[idx]
+                    val category = categories[idx]
+                    
+                    // Translate category title
+                    val catTitle = when (category.id) {
+                        "Sciences" -> if (lang == "EN") "Science" else if (lang == "ES") "Ciencias" else if (lang == "DE") "Wissenschaften" else "Sciences"
+                        "Histoire" -> if (lang == "EN") "History" else if (lang == "ES") "Historia" else if (lang == "DE") "Geschichte" else "Histoire"
+                        "Echecs" -> if (lang == "EN") "Chess" else if (lang == "ES") "Ajedrez" else if (lang == "DE") "Schach" else "Échecs"
+                        "Culture" -> if (lang == "EN") "Culture" else if (lang == "ES") "Cultura" else if (lang == "DE") "Kultur" else "Culture"
+                        "Géographie" -> if (lang == "EN") "Geography" else if (lang == "ES") "Geografía" else if (lang == "DE") "Geographie" else "Géographie"
+                        "Technologie" -> if (lang == "EN") "Technology" else if (lang == "ES") "Tecnología" else if (lang == "DE") "Technologie" else "Technologie"
+                        "Sport" -> if (lang == "EN") "Sports" else if (lang == "ES") "Deportes" else if (lang == "DE") "Sport" else "Sport"
+                        "Cinéma" -> if (lang == "EN") "Cinema" else if (lang == "ES") "Cine" else if (lang == "DE") "Kino" else "Cinéma & TV"
+                        "Musique" -> if (lang == "EN") "Music" else if (lang == "ES") "Música" else if (lang == "DE") "Musik" else "Musique"
+                        "Nature" -> if (lang == "EN") "Nature" else if (lang == "ES") "Naturaleza" else if (lang == "DE") "Natur" else "Nature"
+                        else -> category.title
+                    }
+
+                    // Translate category subtitle
+                    val catSubtitle = when (category.id) {
+                        "Sciences" -> if (lang == "EN") "Physics & Chemistry tests" else if (lang == "ES") "Pruebas de física y química" else if (lang == "DE") "Physik- und Chemie-Tests" else "Tests de physique & chimie"
+                        "Histoire" -> if (lang == "EN") "Ancient eras & civilizations" else if (lang == "ES") "Épocas y civ. antiguas" else if (lang == "DE") "Antike Epochen & Hochkulturen" else "Époques & civilisations antiques"
+                        "Echecs" -> if (lang == "EN") "Strategies, moves & legends" else if (lang == "ES") "Estrategias, jugadas y leyendas" else if (lang == "DE") "Strategien, Züge & Legenden" else "Stratégies, coups & légendes"
+                        "Culture" -> if (lang == "EN") "Visual arts & world literature" else if (lang == "ES") "Artes visuales y literatura mundial" else if (lang == "DE") "Bildende Kunst & Weltliteratur" else "Arts visuels & littérature mondiale"
+                        "Géographie" -> if (lang == "EN") "Continents, rivers & capitals" else if (lang == "ES") "Continentes, ríos y capitales" else if (lang == "DE") "Kontinente, Flüsse & Hauptstädte" else "Continents, fleuves & capitales"
+                        "Technologie" -> if (lang == "EN") "Internet, computers & algos" else if (lang == "ES") "Internet, computadoras y algos" else if (lang == "DE") "Internet, Computer & Algos" else "Internet, ordinateurs & algos"
+                        "Sport" -> if (lang == "EN") "Olympic games & records" else if (lang == "ES") "Juegos olímpicos y récords" else if (lang == "DE") "Olympische Spiele & Rekorde" else "Jeux olympiques & records"
+                        "Cinéma" -> if (lang == "EN") "Great classics & blockbusters" else if (lang == "ES") "Grandes clásicos y éxitos" else if (lang == "DE") "Große Klassiker & Meisterwerke" else "Grands classiques & chefs-d'œuvre"
+                        "Musique" -> if (lang == "EN") "Famous symphonies & modern pop" else if (lang == "ES") "Sinfonías famosas y pop" else if (lang == "DE") "Berühmte Symphonien & moderne Popmusik" else "Symphonies célèbres & pop"
+                        "Nature" -> if (lang == "EN") "Ecosystems, flora & fauna" else if (lang == "ES") "Ecosistemas, flora y fauna" else if (lang == "DE") "Ökosysteme, Flora & Tierwelt" else "Écosystèmes, flore & règne animal"
+                        else -> category.subtitle
+                    }
+
                     Card(
-                        onClick = { viewModel.startQuizSession(catId) },
+                        onClick = { selectedCategoryForLevel = category },
                         colors = CardDefaults.cardColors(
                             containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
                         ),
@@ -526,7 +846,7 @@ fun QuizSection(viewModel: AuraViewModel) {
                             .fillMaxWidth()
                             .height(130.dp)
                             .border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(12.dp))
-                            .testTag("quiz_cat_$catId")
+                            .testTag("quiz_cat_${category.id}")
                     ) {
                         Column(
                             modifier = Modifier
@@ -538,33 +858,33 @@ fun QuizSection(viewModel: AuraViewModel) {
                             Box(
                                 modifier = Modifier
                                     .size(42.dp)
-                                    .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.1f), CircleShape),
+                                    .background(category.color.copy(alpha = 0.15f), CircleShape),
                                 contentAlignment = Alignment.Center
                             ) {
                                 Icon(
-                                    imageVector = when (catId) {
-                                        "Sciences" -> Icons.Default.Science
-                                        "Histoire" -> Icons.Default.MenuBook
-                                        "Echecs" -> Icons.Default.Extension
-                                        else -> Icons.Default.Movie
-                                    },
-                                    contentDescription = catId,
-                                    tint = MaterialTheme.colorScheme.primary,
+                                    imageVector = category.icon,
+                                    contentDescription = catTitle,
+                                    tint = category.color,
                                     modifier = Modifier.size(22.dp)
                                 )
                             }
                             
                             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                                 Text(
-                                    text = if (catId == "Echecs") "Échecs & Tactique" else catId,
+                                    text = catTitle,
                                     fontWeight = FontWeight.Bold,
-                                    fontSize = 14.sp,
-                                    color = MaterialTheme.colorScheme.onSurface
+                                    fontSize = 13.sp,
+                                    color = MaterialTheme.colorScheme.onSurface,
+                                    textAlign = TextAlign.Center,
+                                    maxLines = 1
                                 )
                                 Text(
-                                    text = "5 Questions • Multiplicateur x${idx+2}",
-                                    fontSize = 11.sp,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    text = catSubtitle,
+                                    fontSize = 9.sp,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    textAlign = TextAlign.Center,
+                                    maxLines = 2,
+                                    lineHeight = 11.sp
                                 )
                             }
                         }
@@ -592,7 +912,10 @@ fun QuizSection(viewModel: AuraViewModel) {
                         modifier = Modifier.size(20.dp)
                     )
                     Text(
-                        text = "Bonus : Une série de réponses correctes consécutives multiplie vos pièces récoltées à la fin du quiz !",
+                        text = if (lang == "EN") "Bonus: A series of consecutive correct answers multiplies your coins at the end of the quiz!"
+                               else if (lang == "ES") "Bono: ¡Una serie de respuestas correctas consecutivas multiplica tus monedas al final del cuestionario!"
+                               else if (lang == "DE") "Bonus: Eine Reihe aufeinanderfolgender richtiger Antworten vervielfacht deine Münzen am Ende des Quiz!"
+                               else "Bonus : Une série de réponses correctes consécutives multiplie vos pièces récoltées à la fin du quiz !",
                         fontSize = 12.sp,
                         color = MaterialTheme.colorScheme.onPrimaryContainer,
                         lineHeight = 16.sp
@@ -603,9 +926,18 @@ fun QuizSection(viewModel: AuraViewModel) {
     }
 }
 
+data class LevelItem(
+    val num: Int,
+    val title: String,
+    val stars: String,
+    val desc: String,
+    val color: androidx.compose.ui.graphics.Color
+)
+
 @Composable
 fun ActiveQuizScreen(viewModel: AuraViewModel, category: String) {
-    val questions = viewModel.quizQuestions[category] ?: return
+    val questions = viewModel.activeQuizQuestions
+    if (questions.isEmpty()) return
     val currentIndex = viewModel.quizCurrentIndex
     val currentQuestion = questions[currentIndex]
     val selectedIdx = viewModel.selectedOptionIdx
@@ -972,6 +1304,13 @@ fun ChessSection(viewModel: AuraViewModel) {
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Spacer(modifier = Modifier.height(4.dp))
+            
+            GameRuleHeader(
+                title = "Échecs IA",
+                rules = "Défiez le moteur d'échecs de l'OS ! Les règles classiques s'appliquent : déplacez vos pièces pour capturer les forces adverses et placez le Roi adverse en situation d'Échec et Mat. Anticipez les coups mécaniques de l'IA !",
+                color = Color(0xFFFF5722)
+            )
+
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
@@ -1096,6 +1435,71 @@ fun ChessSection(viewModel: AuraViewModel) {
                         }
                     }
                 }
+
+                Spacer(modifier = Modifier.height(10.dp))
+                
+                Text(
+                    "Défiez de vraies personnes en direct (Multijoueur) :",
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary
+                )
+
+                Card(
+                    onClick = { viewModel.startChessMultiplayerGame() },
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.25f)),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(72.dp)
+                        .border(1.5.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.4f), RoundedCornerShape(12.dp))
+                        .testTag("btn_chess_start_multiplayer")
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(12.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(40.dp)
+                                    .background(MaterialTheme.colorScheme.primary, CircleShape),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Groups,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.onPrimary,
+                                    modifier = Modifier.size(22.dp)
+                                )
+                            }
+                            Column {
+                                Text(
+                                    "Match Classé 1vs1 (Vrais humains)",
+                                    fontWeight = FontWeight.Black,
+                                    fontSize = 14.sp,
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                                Text(
+                                    "Payant (30 🪙) pour Gratuit. Gratuit et Illimité pour PRO/Premium",
+                                    fontSize = 10.sp,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+                        Icon(
+                            imageVector = Icons.Default.FlashOn,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                }
             }
         }
     }
@@ -1136,7 +1540,7 @@ fun ActiveChessGameScreen(viewModel: AuraViewModel) {
                     modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    Text("Joueur (Blanc)", fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                    Text("Moi (Blancs)", fontSize = 10.sp, fontWeight = FontWeight.Bold)
                     Text(
                         text = formatTimeClock(whiteTimeLeft),
                         fontWeight = FontWeight.ExtraBold,
@@ -1151,7 +1555,7 @@ fun ActiveChessGameScreen(viewModel: AuraViewModel) {
                 onClick = {},
                 label = {
                     Text(
-                        text = if (activeTurn) "Votre Tour (Blancs)" else "IA Réfléchit (Noirs)...",
+                        text = if (activeTurn) "Votre Tour" else if (viewModel.isChessAgainstRealPlayer) "@${viewModel.chessOpponentHandle}..." else "IA Réfléchit (Noirs)...",
                         fontWeight = FontWeight.Bold,
                         fontSize = 11.sp
                     )
@@ -1173,7 +1577,7 @@ fun ActiveChessGameScreen(viewModel: AuraViewModel) {
                     modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    Text("IA (Noirs)", fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                    Text(if (viewModel.isChessAgainstRealPlayer) "@${viewModel.chessOpponentHandle}" else "IA (Noirs)", fontSize = 10.sp, fontWeight = FontWeight.Bold)
                     Text(
                         text = formatTimeClock(blackTimeLeft),
                         fontWeight = FontWeight.ExtraBold,
@@ -1217,6 +1621,13 @@ fun ActiveChessGameScreen(viewModel: AuraViewModel) {
                         val squareColor = if (isDarkSquare) Color(0xFFB88B4A) else Color(0xFFE3D6B5)
                         val isSelected = selectedCell == Pair(r, c)
                         
+                        // Check if this square can be moved to from the selected piece
+                        val isPossibleDest = selectedCell != null && selectedCell != Pair(r, c) && board[r][c]?.isWhite != true && run {
+                            val (sr, sc) = selectedCell
+                            val selectedPiece = board[sr][sc]
+                            selectedPiece != null && viewModel.isValidChessMove(sr, sc, r, c, selectedPiece)
+                        } && viewModel.chessAiDifficulty == "Amateur"
+
                         Box(
                             modifier = Modifier
                                 .weight(1f)
@@ -1240,6 +1651,26 @@ fun ActiveChessGameScreen(viewModel: AuraViewModel) {
                                     color = if (piece.isWhite) Color.White else Color(0xFF212121),
                                     fontWeight = FontWeight.Bold
                                 )
+                            }
+                            
+                            // Highlight legal move places for beginner (Amateur) level
+                            if (isPossibleDest) {
+                                if (piece == null) {
+                                    // Empty square: display candidate green dot helper
+                                    Box(
+                                        modifier = Modifier
+                                            .size(12.dp)
+                                            .background(Color(0x7F22C55E), androidx.compose.foundation.shape.CircleShape)
+                                    )
+                                } else {
+                                    // Occupied square: display capture target red circle outline
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxSize()
+                                            .padding(4.dp)
+                                            .border(2.5.dp, Color(0x99EF4444), androidx.compose.foundation.shape.CircleShape)
+                                    )
+                                }
                             }
                         }
                     }
@@ -1376,6 +1807,13 @@ fun MemorySection(viewModel: AuraViewModel) {
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Spacer(modifier = Modifier.height(4.dp))
+            
+            GameRuleHeader(
+                title = "Mémoire Visuelle",
+                rules = "Améliorez votre mémoire à court terme ! Touchez les cartes une par une pour les retourner et mémoriser leurs symboles. Associez toutes les paires de cartes identiques le plus vite possible !",
+                color = Color(0xFF4CAF50)
+            )
+
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
@@ -1646,6 +2084,12 @@ fun SudokuSection(viewModel: AuraViewModel) {
         verticalArrangement = Arrangement.spacedBy(16.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
+        GameRuleHeader(
+            title = "Elsa Zen (Sudoku)",
+            rules = "Remplissez la grille afin que chaque ligne, colonne et sous-grille de 3x3 contiennent tous les chiffres de 1 à 9 sans répétition. Sélectionnez une case vide puis tapez sur un chiffre pour l'inscrire. Attention : pas plus de 3 erreurs !",
+            color = Color(0xFF00BCD4)
+        )
+
         // Upper stats banner
         Card(
             shape = RoundedCornerShape(16.dp),
@@ -1703,8 +2147,8 @@ fun SudokuSection(viewModel: AuraViewModel) {
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    Text("🎉 Sudoku Complété !", fontWeight = FontWeight.Black, fontSize = 20.sp, color = MaterialTheme.colorScheme.onPrimaryContainer)
-                    Text("Vous avez parfaitement résolu la grille Sudoku avec brio.", fontSize = 13.sp, textAlign = TextAlign.Center)
+                    Text("🎉 Elsa Complété !", fontWeight = FontWeight.Black, fontSize = 20.sp, color = MaterialTheme.colorScheme.onPrimaryContainer)
+                    Text("Vous avez parfaitement résolu la grille Elsa avec brio.", fontSize = 13.sp, textAlign = TextAlign.Center)
                     Text("+120 🪙 et +100 XP accordés !", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
                     Button(
                         onClick = {
@@ -2109,6 +2553,12 @@ fun TwoZeroFourEightSection(viewModel: AuraViewModel) {
         verticalArrangement = Arrangement.spacedBy(16.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
+        GameRuleHeader(
+            title = "2048 Sys",
+            rules = "Faites glisser les tuiles dans les 4 directions pour fusionner les nombres identiques. À chaque mouvement, une nouvelle tuile apparait. Deux tuiles de même valeur se combinent pour doubler leur nombre. Atteignez la tuile 2048 pour gagner !",
+            color = Color(0xFFE91E63)
+        )
+
         // High fidelity heading scoring
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -2356,6 +2806,12 @@ fun WordleSection(viewModel: AuraViewModel) {
         verticalArrangement = Arrangement.spacedBy(16.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
+        GameRuleHeader(
+            title = "Mots Doux",
+            rules = "Devinez le mot secret bienveillant de 5 lettres en 6 essais maximum. Les couleurs révèlent l'état des lettres : Rose (correcte et à la bonne place), Or/Jaune (présente mais mal placée), Gris (absente).",
+            color = Color(0xFFE040FB)
+        )
+
         Text(
             text = statusMsg,
             fontSize = 12.sp,
@@ -2588,6 +3044,12 @@ fun LightsOutSection(viewModel: AuraViewModel) {
         verticalArrangement = Arrangement.spacedBy(16.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
+        GameRuleHeader(
+            title = "Lumières Out",
+            rules = "Éteignez l'ensemble des lumières de la grille. Cliquer sur un carré inverse son état (allumé/éteint) ainsi que l'état de ses 4 voisins de croix directe (haut, bas, gauche, droite). Trouvez la séquence idéale !",
+            color = Color(0xFFFFEB3B)
+        )
+
         // Upper choices Row
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -2682,74 +3144,194 @@ fun LightsOutSection(viewModel: AuraViewModel) {
     }
 }
 
-// ================== GAME 5: SIMON SENSE (SIMON SAYS) ==================
+// ================== GAME 5: PUISSANCE 4 (CONNECT 4) ==================
 @Composable
 fun SimonSaysSection(viewModel: AuraViewModel) {
-    var aiSequence by remember { mutableStateOf(listOf<Int>()) }
-    var playerSequence by remember { mutableStateOf(listOf<Int>()) }
-    var activeTileIndex by remember { mutableIntStateOf(-1) }
-    var score by remember { mutableIntStateOf(0) }
-    var bestScore by remember { mutableIntStateOf(0) }
-    var isShowingSeq by remember { mutableStateOf(false) }
-    var stateMessage by remember { mutableStateOf("Prenez une grande respiration, puis appuyez sur Démarrer !") }
-
-    val coroutineScope = rememberCoroutineScope()
-
-    fun triggerAiSequence() {
-        coroutineScope.launch {
-            isShowingSeq = true
-            playerSequence = listOf()
-            stateMessage = "Simon génère la mélodie..."
-            
-            // Add a new random index
-            val updated = aiSequence + (0..3).random()
-            aiSequence = updated
-            
-            delay(800)
-            for (step in updated) {
-                activeTileIndex = step
-                delay(550)
-                activeTileIndex = -1
-                delay(180)
+    // 6 rows x 7 cols
+    var board by remember { mutableStateOf(List(6) { List(7) { 0 } }) } // 0: empty, 1: player, 2: AI
+    var playerTurn by remember { mutableStateOf(true) }
+    var winner by remember { mutableIntStateOf(0) } // 0: none, 1: player, 2: AI, 3: draw
+    var stateMessage by remember { mutableStateOf("C'est à votre tour ! Choisissez une colonne.") }
+    
+    val context = LocalContext.current
+    val vibrator = remember {
+        try {
+            val vContext = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R) {
+                context.createAttributionContext("vibration")
+            } else {
+                context
             }
-            
-            isShowingSeq = false
-            stateMessage = "À vous de jouer ! Répétez la même suite..."
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
+                val vibratorManager = vContext.getSystemService(android.content.Context.VIBRATOR_MANAGER_SERVICE) as? android.os.VibratorManager
+                vibratorManager?.defaultVibrator
+            } else {
+                @Suppress("DEPRECATION")
+                vContext.getSystemService(android.content.Context.VIBRATOR_SERVICE) as? android.os.Vibrator
+            }
+        } catch (e: Exception) {
+            null
         }
     }
 
-    fun handleTileClick(index: Int) {
-        if (isShowingSeq || aiSequence.isEmpty()) return
-        
-        coroutineScope.launch {
-            // Momentarily highlight the tile clicked
-            activeTileIndex = index
-            delay(150)
-            activeTileIndex = -1
-            
-            val nextPlayerSeq = playerSequence + index
-            playerSequence = nextPlayerSeq
-            
-            // Verify step matching
-            val stepIndexToCheck = nextPlayerSeq.size - 1
-            if (nextPlayerSeq[stepIndexToCheck] == aiSequence[stepIndexToCheck]) {
-                // Correct tile !
-                if (nextPlayerSeq.size == aiSequence.size) {
-                    score++
-                    if (score > bestScore) bestScore = score
-                    stateMessage = "Correct ! Préparation du tour suivant..."
-                    viewModel.coins += 10
-                    viewModel.xp += 10
-                    delay(1200)
-                    triggerAiSequence()
+    fun vibrateShort() {
+        try {
+            if (vibrator != null && vibrator.hasVibrator()) {
+                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                    vibrator.vibrate(android.os.VibrationEffect.createOneShot(45, android.os.VibrationEffect.DEFAULT_AMPLITUDE))
+                } else {
+                    @Suppress("DEPRECATION")
+                    vibrator.vibrate(45)
                 }
-            } else {
-                // WRONG! Game Over
-                stateMessage = "💀 Erreur ! Fin de partie. Score final : $score"
-                aiSequence = listOf()
-                playerSequence = listOf()
-                score = 0
             }
+        } catch (e: Exception) {
+            // Ignore if permission or hardware error
+        }
+    }
+
+    fun checkWin(tempBoard: List<List<Int>>, type: Int): Boolean {
+        // Horizontal check
+        for (r in 0..5) {
+            for (c in 0..3) {
+                if (tempBoard[r][c] == type && tempBoard[r][c+1] == type && tempBoard[r][c+2] == type && tempBoard[r][c+3] == type) return true
+            }
+        }
+        // Vertical check
+        for (c in 0..6) {
+            for (r in 0..2) {
+                if (tempBoard[r][c] == type && tempBoard[r+1][c] == type && tempBoard[r+2][c] == type && tempBoard[r+3][c] == type) return true
+            }
+        }
+        // Diagonal Up-Right check (from bottom left to top right)
+        for (r in 3..5) {
+            for (c in 0..3) {
+                if (tempBoard[r][c] == type && tempBoard[r-1][c+1] == type && tempBoard[r-2][c+2] == type && tempBoard[r-3][c+3] == type) return true
+            }
+        }
+        // Diagonal Down-Right check (from top left to bottom right)
+        for (r in 0..2) {
+            for (c in 0..3) {
+                if (tempBoard[r][c] == type && tempBoard[r+1][c+1] == type && tempBoard[r+2][c+2] == type && tempBoard[r+3][c+3] == type) return true
+            }
+        }
+        return false
+    }
+
+    fun isBoardFull(tempBoard: List<List<Int>>): Boolean {
+        for (c in 0..6) {
+            if (tempBoard[0][c] == 0) return false
+        }
+        return true
+    }
+
+    val coroutineScope = rememberCoroutineScope()
+
+    fun aiPlayCurrent(currentBoard: List<List<Int>>) {
+        coroutineScope.launch {
+            stateMessage = "L'IA réfléchit..."
+            delay(650)
+            
+            // 1. Can AI win immediately?
+            var chosenCol = -1
+            for (c in 0..6) {
+                if (currentBoard[0][c] == 0) {
+                    val nextB = currentBoard.map { it.toMutableList() }
+                    for (r in 5 downTo 0) {
+                        if (nextB[r][c] == 0) {
+                            nextB[r][c] = 2
+                            break
+                        }
+                    }
+                    if (checkWin(nextB, 2)) {
+                        chosenCol = c
+                        break
+                    }
+                }
+            }
+            
+            // 2. Can AI block Player's win?
+            if (chosenCol == -1) {
+                for (c in 0..6) {
+                    if (currentBoard[0][c] == 0) {
+                        val nextB = currentBoard.map { it.toMutableList() }
+                        for (r in 5 downTo 0) {
+                            if (nextB[r][c] == 0) {
+                                nextB[r][c] = 1
+                                break
+                            }
+                        }
+                        if (checkWin(nextB, 1)) {
+                            chosenCol = c
+                            break
+                        }
+                    }
+                }
+            }
+
+            // 3. Fallback: Strategic/Preference Columns: 3, then 2 or 4, then others randomly
+            if (chosenCol == -1) {
+                val prefs = listOf(3, 2, 4, 1, 5, 0, 6)
+                chosenCol = prefs.firstOrNull { currentBoard[0][it] == 0 } ?: prefs.first { currentBoard[0][it] == 0 }
+            }
+
+            // Execute AI drop
+            val nextBoard = board.map { it.toMutableList() }
+            var placedRow = -1
+            for (r in 5 downTo 0) {
+                if (nextBoard[r][chosenCol] == 0) {
+                    nextBoard[r][chosenCol] = 2
+                    placedRow = r
+                    break
+                }
+            }
+
+            board = nextBoard
+            vibrateShort()
+
+            if (checkWin(nextBoard, 2)) {
+                winner = 2
+                stateMessage = "💀 L'IA remporte la partie ! Ne baissez pas les bras."
+            } else if (isBoardFull(nextBoard)) {
+                winner = 3
+                stateMessage = "Match nul ! Belle bataille de logique."
+            } else {
+                playerTurn = true
+                stateMessage = "C'est à votre tour ! Choisissez une colonne."
+            }
+        }
+    }
+
+    fun dropToken(col: Int) {
+        if (!playerTurn || winner != 0) return
+        if (board[0][col] != 0) {
+            stateMessage = "⚠️ Cette colonne est pleine ! Choisissez-en une autre."
+            return
+        }
+
+        // Find lowest row
+        val nextBoard = board.map { it.toMutableList() }
+        var placedRow = -1
+        for (r in 5 downTo 0) {
+            if (nextBoard[r][col] == 0) {
+                nextBoard[r][col] = 1
+                placedRow = r
+                break
+            }
+        }
+
+        board = nextBoard
+        vibrateShort()
+
+        if (checkWin(nextBoard, 1)) {
+            winner = 1
+            stateMessage = "🎉 VICTOIRE ! Vous avez aligné 4 jetons consécutifs !"
+            viewModel.coins += 150
+            viewModel.xp += 100
+        } else if (isBoardFull(nextBoard)) {
+            winner = 3
+            stateMessage = "Match nul ! Personne n'a réussi à aligner 4 jetons."
+        } else {
+            playerTurn = false
+            aiPlayCurrent(nextBoard)
         }
     }
 
@@ -2760,106 +3342,154 @@ fun SimonSaysSection(viewModel: AuraViewModel) {
         verticalArrangement = Arrangement.spacedBy(16.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        // Statistics
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Column {
-                Text("Score", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                Text("$score", fontWeight = FontWeight.Black, fontSize = 20.sp, color = MaterialTheme.colorScheme.primary)
-            }
-            Column(horizontalAlignment = Alignment.End) {
-                Text("Meilleur", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                Text("$bestScore", fontWeight = FontWeight.Bold, fontSize = 16.sp, color = MaterialTheme.colorScheme.secondary)
-            }
-        }
-
-        Text(
-            text = stateMessage,
-            fontSize = 12.sp,
-            textAlign = TextAlign.Center,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.padding(horizontal = 12.dp)
+        GameRuleHeader(
+            title = "Puissance 4",
+            rules = "Alignez 4 jetons consécutifs ! Appuyez sur n'importe quel bouton de colonne (1 à 7) pour y laisser tomber un jeton rose. L'IA joue ensuite un jeton doré. Le premier qui réalise un alignement de 4 jetons (horizontal, vertical ou diagonal) triomphe !",
+            color = Color(0xFFE91E63)
         )
 
-        // 2x2 Simon Button Panel
+        // Title and turn status banner
         Card(
-            shape = RoundedCornerShape(24.dp),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)),
-            modifier = Modifier.aspectRatio(1f).fillMaxWidth()
+            shape = RoundedCornerShape(12.dp),
+            colors = CardDefaults.cardColors(
+                containerColor = when (winner) {
+                    1 -> Color(0xFF10B981).copy(alpha = 0.15f)
+                    2 -> Color(0xFFEF4444).copy(alpha = 0.15f)
+                    else -> MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.15f)
+                }
+            ),
+            modifier = Modifier.fillMaxWidth()
         ) {
             Column(
-                modifier = Modifier.fillMaxSize().padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
+                modifier = Modifier.padding(12.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(4.dp)
             ) {
-                Row(
-                    modifier = Modifier.weight(1f).fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    // Quadrant 0: Green (Top Left)
-                    Box(
-                        modifier = Modifier
-                            .weight(1f)
-                            .fillMaxHeight()
-                            .clip(RoundedCornerShape(topStart = 40.dp, topEnd = 8.dp, bottomStart = 8.dp, bottomEnd = 8.dp))
-                            .background(
-                                if (activeTileIndex == 0) Color(0xFF00FF00) else Color(0xFF005A00)
-                            )
-                            .clickable { handleTileClick(0) }
-                    )
-                    
-                    // Quadrant 1: Red (Top Right)
-                    Box(
-                        modifier = Modifier
-                            .weight(1f)
-                            .fillMaxHeight()
-                            .clip(RoundedCornerShape(topStart = 8.dp, topEnd = 40.dp, bottomStart = 8.dp, bottomEnd = 8.dp))
-                            .background(
-                                if (activeTileIndex == 1) Color(0xFFFF0000) else Color(0xFF6E0000)
-                            )
-                            .clickable { handleTileClick(1) }
-                    )
-                }
+                Text(
+                    text = if (winner == 0) "DUEL EN COURS VS IA" else "PARTIE TERMINÉE",
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f)
+                )
+                Text(
+                    text = stateMessage,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.ExtraBold,
+                    color = when (winner) {
+                        1 -> Color(0xFF10B981)
+                        2 -> Color(0xFFEF4444)
+                        else -> MaterialTheme.colorScheme.onPrimaryContainer
+                    },
+                    textAlign = TextAlign.Center
+                )
+            }
+        }
 
-                Row(
-                    modifier = Modifier.weight(1f).fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    // Quadrant 2: Yellow (Bottom Left)
-                    Box(
+        // Active Columns dropping utility arrows
+        if (winner == 0 && playerTurn) {
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                for (col in 0..6) {
+                    IconButton(
+                        onClick = { dropToken(col) },
                         modifier = Modifier
                             .weight(1f)
-                            .fillMaxHeight()
-                            .clip(RoundedCornerShape(topStart = 8.dp, topEnd = 8.dp, bottomStart = 40.dp, bottomEnd = 8.dp))
-                            .background(
-                                if (activeTileIndex == 2) Color(0xFFFFEB3B) else Color(0xFF635A00)
-                            )
-                            .clickable { handleTileClick(2) }
-                    )
-
-                    // Quadrant 3: Blue (Bottom Right)
-                    Box(
-                        modifier = Modifier
-                            .weight(1f)
-                            .fillMaxHeight()
-                            .clip(RoundedCornerShape(topStart = 8.dp, topEnd = 8.dp, bottomStart = 8.dp, bottomEnd = 40.dp))
-                            .background(
-                                if (activeTileIndex == 3) Color(0xFF2196F3) else Color(0xFF0D3F69)
-                            )
-                            .clickable { handleTileClick(3) }
-                    )
+                            .size(32.dp)
+                            .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.08f), CircleShape)
+                            .testTag("p4_drop_col_$col")
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.ArrowDownward,
+                            contentDescription = "Drop Col ${col + 1}",
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(16.dp)
+                        )
+                    }
                 }
             }
         }
 
-        if (aiSequence.isEmpty()) {
-            Button(
-                onClick = { triggerAiSequence() },
-                modifier = Modifier.fillMaxWidth().height(48.dp)
+        // PUISSANCE 4 GRID PLATE (Realistic slate design with circle cutouts)
+        Card(
+            shape = RoundedCornerShape(16.dp),
+            colors = CardDefaults.cardColors(containerColor = Color(0xFF1E293B)), // deep blue-slate case
+            border = BorderStroke(1.5.dp, Color(0xFF38BDF8)),
+            modifier = Modifier
+                .aspectRatio(1.15f)
+                .fillMaxWidth()
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(8.dp),
+                verticalArrangement = Arrangement.spacedBy(6.dp)
             ) {
-                Text("Démarrer le Simon", fontWeight = FontWeight.Bold)
+                for (r in 0..5) {
+                    Row(
+                        modifier = Modifier
+                            .weight(1f)
+                            .fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        for (c in 0..6) {
+                            val cellType = board[r][c]
+                            Box(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .fillMaxHeight()
+                                    .clip(CircleShape)
+                                    .background(
+                                        when (cellType) {
+                                            1 -> Color(0xFFEC4899) // Hot pink / Rose Player
+                                            2 -> Color(0xFFF59E0B) // Amber Golden AI
+                                            else -> Color(0xFF0F172A) // Deep dark empty hole
+                                        }
+                                    )
+                                    .clickable { dropToken(c) }
+                                    .border(1.dp, Color(0xFF334155), CircleShape),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                if (cellType != 0) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(14.dp)
+                                            .background(Color.White.copy(alpha = 0.15f), CircleShape)
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // Restart Row Actions
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Button(
+                onClick = {
+                    board = List(6) { List(7) { 0 } }
+                    playerTurn = true
+                    winner = 0
+                    stateMessage = "Nouvelle partie ! C'est à votre tour."
+                },
+                modifier = Modifier
+                    .weight(1f)
+                    .height(48.dp)
+                    .testTag("btn_p4_restart"),
+                shape = RoundedCornerShape(12.dp)
+            ) {
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(imageVector = Icons.Default.Refresh, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Text("Recommencer", fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                }
             }
         }
     }
