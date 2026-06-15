@@ -53,7 +53,8 @@ workflows:
           # Using -P properties to pass secrets to gradle if needed via buildConfigField
           ./gradlew assembleRelease bundleRelease \
             -PSUPABASE_URL="$SUPABASE_URL" \
-            -PSUPABASE_ANON_KEY="$SUPABASE_ANON_KEY"
+            -PSUPABASE_ANON_KEY="$SUPABASE_ANON_KEY" \
+            -PAI_API_KEY="$AI_API_KEY"
 
     artifacts:
       - app/build/outputs/apk/release/*.apk
