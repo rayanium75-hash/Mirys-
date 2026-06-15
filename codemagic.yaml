@@ -1,41 +1,38 @@
 # Codemagic Continuous Integration configuration for Mirys
-# Specifically configured for Mirys- Android Project (minSdk 29 / Android 10+)
+# Optimized for Android 10 and based on the provided template structure
 
 workflows:
   mirys-android-production:
     name: MIRYS Android Production
     max_build_duration: 30
-    instance_type: mac_mini_m1
 
     environment:
       groups:
         - mirys_secrets
       vars:
-        SUPABASE_URL: "https://ozhgvfpaxpfuxotznzoj.supabase.co"
+        VITE_SUPABASE_URL: "https://ozhgvfpaxpfuxotznzoj.supabase.co"
       java: 17
       android_gradle: 8.0
 
     scripts:
       - name: Create .env file
         script: |
-          echo "Generating .env configuration file..."
-          echo "SUPABASE_URL=https://ozhgvfpaxpfuxotznzoj.supabase.co" > .env
-          echo "SUPABASE_ANON_KEY=$SUPABASE_ANON_KEY" >> .env
+          echo "VITE_SUPABASE_URL=https://ozhgvfpaxpfuxotznzoj.supabase.co" > .env
+          echo "VITE_SUPABASE_ANON_KEY=$VITE_SUPABASE_ANON_KEY" >> .env
           echo "AI_API_KEY=$AI_API_KEY" >> .env
           echo "GOOGLE_WEB_CLIENT_ID=$GOOGLE_WEB_CLIENT_ID" >> .env
 
       - name: Install dependencies
         script: |
           chmod +x gradlew
-          # Dependencies are managed by Gradle during the build process
+          # Gradle manages Android dependencies automatically
 
       - name: Build
         script: |
-          # Building Mirys- Android Production Artifacts (APK & AAB)
-          # Explicitly passing variables to ensure they are available in BuildConfig
+          # Building Mirys Android Production (APK & Bundle)
           ./gradlew assembleRelease bundleRelease \
-            -PSUPABASE_URL="https://ozhgvfpaxpfuxotznzoj.supabase.co" \
-            -PSUPABASE_ANON_KEY="$SUPABASE_ANON_KEY" \
+            -PVITE_SUPABASE_URL="https://ozhgvfpaxpfuxotznzoj.supabase.co" \
+            -PVITE_SUPABASE_ANON_KEY="$VITE_SUPABASE_ANON_KEY" \
             -PAI_API_KEY="$AI_API_KEY"
 
     artifacts:
